@@ -28,108 +28,31 @@ import (
 	"time"
 
 	"github.com/nats-io/nats-rest-config-proxy/api"
+	"github.com/nats-io/nats.go"
 )
 
+type Empty struct {
+}
+type ErrorMessage struct {
+	description string
+}
+
 // HandlePerm handles a request to create/update permissions.
-func (s *Server) HandlePerm(w http.ResponseWriter, req *http.Request) {
-	var (
-		size   int
-		status int = http.StatusOK
-		err    error
-	)
-	defer func() {
-		s.processErr(err, status, w, req)
-		s.log.traceRequest(req, size, status, time.Now())
-	}()
+func (s *Server) HandleNats() {
 
-	err = s.verifyAuth(w, req)
-	if err != nil {
-		status = http.StatusUnauthorized
-		return
-	}
+	nc, _ := nats.Connect(nats.DefaultURL)
+	c, _ := nats.NewEncodedConn(nc, nats.JSON_ENCODER)
+	defer c.Close()
 
-	name := strings.TrimPrefix(req.URL.Path, "/v1/auth/perms/")
-
-	// PUT
-	switch req.Method {
-	case "PUT":
-		s.log.Infof("Updating permission resource %q", name)
-		var payload []byte
-		payload, err = ioutil.ReadAll(req.Body)
+	c.Subscribe("accounts.v1.auth.perms.get", func(m *Empty) {
+		perms, err := s.getPermissions()
 		if err != nil {
-			status = http.StatusInternalServerError
+			errorMessage := &ErrorMessage{description: "Some error occured"}
+			c.Publish("accounts.v1.auth.perms", errorMessage)
 			return
 		}
-		size = len(payload)
-
-		// Validate that it is a permission
-		var p *api.Permissions
-		err = json.Unmarshal(payload, &p)
-		if err != nil {
-			status = http.StatusBadRequest
-			return
-		}
-		s.log.Tracef("Permission %q: %+v", name, p)
-
-		// Should get a type here instead
-		err = s.storePermissionResource(name, p)
-		if err != nil {
-			status = http.StatusInternalServerError
-			return
-		}
-		fmt.Fprintf(w, "Perm: %s\n", name)
-	case "GET":
-		s.log.Debugf("Retrieving permission resource %q", name)
-		var resource *api.Permissions
-		resource, err = s.getPermissionResource(name)
-		if err != nil {
-			status = http.StatusInternalServerError
-			return
-		}
-		var payload []byte
-		payload, err = resource.AsJSON()
-		if err != nil {
-			status = http.StatusInternalServerError
-			return
-		}
-		fmt.Fprint(w, string(payload))
-	case "DELETE":
-		s.log.Debugf("Deleting permission resource %q", name)
-		if name == "" {
-			err = errors.New("Bad Request")
-			status = http.StatusBadRequest
-			return
-		}
-
-		// Confirm that no user is using this resource.
-		var users []*api.User
-		users, err = s.getUsers()
-		if err != nil {
-			status = http.StatusInternalServerError
-			return
-		}
-		for _, u := range users {
-			if u.Permissions == name {
-				err = fmt.Errorf("User %q is using permission %q", u.Username, name)
-				status = http.StatusConflict
-				return
-			}
-		}
-
-		err = s.deletePermissionResource(name)
-		if err != nil {
-			if os.IsNotExist(err) {
-				status = http.StatusNotFound
-			} else {
-				status = http.StatusInternalServerError
-			}
-			return
-		}
-		fmt.Fprintf(w, "Deleted permission resource %q", name)
-	default:
-		status = http.StatusMethodNotAllowed
-		err = fmt.Errorf("%s is not allowed on %q", req.Method, req.URL.Path)
-	}
+		c.Publish("accounts.v1.auth.perms", perms)
+	})
 }
 
 // HandleIdent
@@ -314,79 +237,6 @@ func (s *Server) HandleSnapshot(w http.ResponseWriter, req *http.Request) {
 			return
 		}
 		fmt.Fprintf(w, "OK\n")
-	default:
-		status = http.StatusMethodNotAllowed
-		err = fmt.Errorf("%s is not allowed on %q", req.Method, req.URL.Path)
-	}
-}
-
-// HandlePublish
-func (s *Server) HandlePublish(w http.ResponseWriter, req *http.Request) {
-	var (
-		size   int
-		status int = http.StatusOK
-		err    error
-	)
-	defer func() {
-		s.processErr(err, status, w, req)
-		s.log.traceRequest(req, size, status, time.Now())
-	}()
-
-	err = s.verifyAuth(w, req)
-	if err != nil {
-		status = http.StatusUnauthorized
-		return
-	}
-
-	name := req.URL.Query().Get("name")
-	if name == "" {
-		s.log.Infof("Building latest config...")
-		name = DefaultSnapshotName
-		err = s.buildConfigSnapshot(name)
-		if err != nil {
-			status = http.StatusInternalServerError
-			return
-		}
-	} else {
-		s.log.Infof("Creating config from snapshot %q", name)
-	}
-	switch req.Method {
-	case "POST":
-		var data []byte
-		data, err = s.getConfigSnapshot(name)
-		if err != nil {
-			status = http.StatusInternalServerError
-			return
-		}
-		err = s.storeConfig(data)
-		if err != nil {
-			status = http.StatusInternalServerError
-			return
-		}
-
-		s.mu.Lock()
-		script := s.opts.PublishScript
-		s.mu.Unlock()
-
-		if script != "" {
-			// Change the cwd of the command to location of the script.
-			var stdout, stderr bytes.Buffer
-			cmd := exec.Command(script)
-			cmd.Dir = filepath.Dir(script)
-			cmd.Stdout = &stdout
-			cmd.Stderr = &stderr
-
-			s.log.Infof("Executing publish script %q", script)
-			err = cmd.Run()
-			s.log.Tracef("STDOUT: %s", stdout.String())
-			s.log.Tracef("STDERR: %s", stdout.String())
-			if err != nil {
-				status = http.StatusInternalServerError
-				return
-			}
-		}
-
-		fmt.Fprintf(w, "Configuration published\n")
 	default:
 		status = http.StatusMethodNotAllowed
 		err = fmt.Errorf("%s is not allowed on %q", req.Method, req.URL.Path)
@@ -654,7 +504,7 @@ func (s *Server) HandleAccounts(w http.ResponseWriter, req *http.Request) {
 
 		if hasJetStream {
 			hasExplicitLimits := a.JetStream.MaxMemoryStore != nil ||
-				a.JetStream.MaxFileStore != nil  ||
+				a.JetStream.MaxFileStore != nil ||
 				a.JetStream.MaxStreams != nil ||
 				a.JetStream.MaxConsumers != nil
 

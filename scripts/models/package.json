@@ -1,0 +1,5 @@
+{
+    "dependencies": {
+        "@asyncapi/modelina": "0.47.0"
+    }
+}

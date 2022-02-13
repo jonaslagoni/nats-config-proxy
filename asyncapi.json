@@ -1,0 +1,714 @@
+{
+  "asyncapi": "2.3.0",
+  "info": {
+    "title": "NATS configuration proxy",
+    "version": "0.0.1",
+    "description": "This application dynamically changes the configuration of a running NATS server",
+    "license": {
+      "name": "Apache 2.0",
+      "url": "https://www.apache.org/licenses/LICENSE-2.0"
+    }
+  },
+  "channels": {
+    "accounts.v1.auth.idents": {
+      "description": "Get list of identities",
+      "subscribe": {
+        "tags": [
+          {
+            "name": "identities",
+            "description": "Identity related"
+          }
+        ],
+        "message": {
+          "$ref": "#/components/messages/Identity"
+        }
+      }
+    },
+    "accounts.v1.auth.idents.get": {
+      "description": "Get list of identities",
+      "publish": {
+        "tags": [
+          {
+            "name": "identities",
+            "description": "Identity related"
+          }
+        ],
+        "message": {
+          "$ref": "#/components/messages/Identity"
+        }
+      }
+    },
+    "accounts.v1.auth.idents.delete": {
+      "description": "Delete all identities",
+      "publish": {
+        "tags": [
+          {
+            "name": "identities",
+            "description": "Identity related"
+          }
+        ],
+        "message": {
+          "$ref": "#/components/messages/Identity"
+        }
+      }
+    },
+    "accounts.v1.auth.idents.{name}": {
+      "parameters": {
+        "name": {
+          "$ref": "#/components/parameters/name"
+        }
+      },
+      "description": "Get specific identity w/ permissions",
+      "subscribe": {
+        "tags": [
+          {
+            "name": "identities",
+            "description": "Identity related"
+          }
+        ],
+        "message": {
+          "$ref": "#/components/messages/Identity"
+        }
+      }
+    },
+    "accounts.v1.auth.idents.{name}.get": {
+      "parameters": {
+        "name": {
+          "$ref": "#/components/parameters/name"
+        }
+      },
+      "description": "Get specific identity w/ permissions",
+      "publish": {
+        "tags": [
+          {
+            "name": "identities",
+            "description": "Identity related"
+          }
+        ],
+        "message": {
+          "$ref": "#/components/messages/Identity"
+        }
+      }
+    },
+    "accounts.v1.auth.idents.{name}.update": {
+      "parameters": {
+        "name": {
+          "$ref": "#/components/parameters/name"
+        }
+      },
+      "description": "Update the specific identify",
+      "publish": {
+        "tags": [
+          {
+            "name": "identities",
+            "description": "Identity related"
+          }
+        ],
+        "message": {
+          "$ref": "#/components/messages/Identity"
+        }
+      }
+    },
+    "accounts.v1.auth.idents.{name}.create": {
+      "parameters": {
+        "name": {
+          "$ref": "#/components/parameters/name"
+        }
+      },
+      "description": "Create the specific identify",
+      "publish": {
+        "tags": [
+          {
+            "name": "identities",
+            "description": "Identity related"
+          }
+        ],
+        "message": {
+          "$ref": "#/components/messages/Identity"
+        }
+      }
+    },
+    "accounts.v1.auth.idents.{name}.delete": {
+      "parameters": {
+        "name": {
+          "$ref": "#/components/parameters/name"
+        }
+      },
+      "description": "Delete the specific identify",
+      "publish": {
+        "tags": [
+          {
+            "name": "identities",
+            "description": "Identity related"
+          }
+        ],
+        "message": {
+          "$ref": "#/components/messages/Identity"
+        }
+      }
+    },
+    "accounts.v1.auth.perms": {
+      "description": "Get list of named permission sets",
+      "subscribe": {
+        "tags": [
+          {
+            "name": "permissions",
+            "description": "Permission related"
+          }
+        ],
+        "message": {
+          "$ref": "#/components/messages/Permissions"
+        }
+      }
+    },
+    "accounts.v1.auth.perms.get": {
+      "description": "Get list of named permission sets",
+      "publish": {
+        "tags": [
+          {
+            "name": "permissions",
+            "description": "Permission related"
+          }
+        ],
+        "message": {
+          "$ref": "#/components/messages/EmptyMessage"
+        }
+      }
+    },
+    "accounts.v1.auth.perms.delete": {
+      "description": "Delete all permissions",
+      "publish": {
+        "tags": [
+          {
+            "name": "permissions",
+            "description": "Permission related"
+          }
+        ],
+        "message": {
+          "$ref": "#/components/messages/Permissions"
+        }
+      }
+    },
+    "accounts.v1.auth.perms.{name}": {
+      "parameters": {
+        "name": {
+          "$ref": "#/components/parameters/name"
+        }
+      },
+      "description": "Get specific permissions",
+      "subscribe": {
+        "tags": [
+          {
+            "name": "permissions",
+            "description": "Permission related"
+          }
+        ],
+        "message": {
+          "$ref": "#/components/messages/Permissions"
+        }
+      }
+    },
+    "accounts.v1.auth.perms.{name}.get": {
+      "parameters": {
+        "name": {
+          "$ref": "#/components/parameters/name"
+        }
+      },
+      "description": "Get specific permission sets",
+      "publish": {
+        "tags": [
+          {
+            "name": "permissions",
+            "description": "Permission related"
+          }
+        ],
+        "message": {
+          "$ref": "#/components/messages/EmptyMessage"
+        }
+      }
+    },
+    "accounts.v1.auth.perms.{name}.update": {
+      "parameters": {
+        "name": {
+          "$ref": "#/components/parameters/name"
+        }
+      },
+      "description": "Update the named permission sets",
+      "publish": {
+        "tags": [
+          {
+            "name": "permissions",
+            "description": "Permission related"
+          }
+        ],
+        "message": {
+          "$ref": "#/components/messages/Permissions"
+        }
+      }
+    },
+    "accounts.v1.auth.perms.{name}.delete": {
+      "parameters": {
+        "name": {
+          "$ref": "#/components/parameters/name"
+        }
+      },
+      "description": "Delete named permission sets",
+      "publish": {
+        "tags": [
+          {
+            "name": "permissions",
+            "description": "Permission related"
+          }
+        ],
+        "message": {
+          "$ref": "#/components/messages/Permissions"
+        }
+      }
+    },
+    "accounts.v1.auth.accounts": {
+      "description": "Get list of accounts",
+      "subscribe": {
+        "tags": [
+          {
+            "name": "accounts",
+            "description": "Account related"
+          }
+        ],
+        "message": {
+          "$ref": "#/components/messages/Accounts"
+        }
+      }
+    },
+    "accounts.v1.auth.accounts.get": {
+      "description": "Get list of accounts",
+      "publish": {
+        "tags": [
+          {
+            "name": "accounts",
+            "description": "Account related"
+          }
+        ],
+        "message": {
+          "$ref": "#/components/messages/Accounts"
+        }
+      }
+    },
+    "accounts.v1.auth.accounts.{name}": {
+      "parameters": {
+        "name": {
+          "$ref": "#/components/parameters/name"
+        }
+      },
+      "description": "Get named account",
+      "subscribe": {
+        "tags": [
+          {
+            "name": "accounts",
+            "description": "Account related"
+          }
+        ],
+        "message": {
+          "$ref": "#/components/messages/Account"
+        }
+      }
+    },
+    "accounts.v1.auth.accounts.{name}.get": {
+      "parameters": {
+        "name": {
+          "$ref": "#/components/parameters/name"
+        }
+      },
+      "description": "Get named account",
+      "publish": {
+        "tags": [
+          {
+            "name": "accounts",
+            "description": "Account related"
+          }
+        ],
+        "message": {
+          "$ref": "#/components/messages/Account"
+        }
+      }
+    },
+    "accounts.v1.auth.accounts.{name}.update": {
+      "parameters": {
+        "name": {
+          "$ref": "#/components/parameters/name"
+        }
+      },
+      "description": "Update named account",
+      "publish": {
+        "tags": [
+          {
+            "name": "accounts",
+            "description": "Account related"
+          }
+        ],
+        "message": {
+          "$ref": "#/components/messages/Account"
+        }
+      }
+    },
+    "accounts.v1.auth.accounts.{name}.create": {
+      "parameters": {
+        "name": {
+          "$ref": "#/components/parameters/name"
+        }
+      },
+      "description": "Create named account",
+      "publish": {
+        "tags": [
+          {
+            "name": "accounts",
+            "description": "Account related"
+          }
+        ],
+        "message": {
+          "$ref": "#/components/messages/Account"
+        }
+      }
+    },
+    "accounts.v1.auth.accounts.{name}.delete": {
+      "parameters": {
+        "name": {
+          "$ref": "#/components/parameters/name"
+        }
+      },
+      "description": "Delete named account",
+      "publish": {
+        "tags": [
+          {
+            "name": "accounts",
+            "description": "Account related"
+          }
+        ],
+        "message": {
+          "$ref": "#/components/messages/Account"
+        }
+      }
+    },
+    "accounts.v.auth.jetstream.update": {
+      "description": "Update JetStream config",
+      "publish": {
+        "tags": [
+          {
+            "name": "jetstream",
+            "description": "Jetstream related"
+          }
+        ],
+        "message": {
+          "$ref": "#/components/messages/JetStreamConfig"
+        }
+      }
+    },
+    "accounts.v.auth.jetstream.create": {
+      "description": "Create JetStream config",
+      "publish": {
+        "tags": [
+          {
+            "name": "jetstream",
+            "description": "Jetstream related"
+          }
+        ],
+        "message": {
+          "$ref": "#/components/messages/JetStreamConfig"
+        }
+      }
+    },
+    "accounts.v.auth.jetstream.delete": {
+      "description": "Delete JetStream config",
+      "publish": {
+        "tags": [
+          {
+            "name": "jetstream",
+            "description": "Jetstream related"
+          }
+        ],
+        "message": {
+          "$ref": "#/components/messages/JetStreamConfig"
+        }
+      }
+    }
+  },
+  "components": {
+    "parameters": {
+      "name": {
+        "description": "name of the account to look up",
+        "schema": {
+          "type": "string"
+        }
+      }
+    },
+    "messages": {
+      "Permissions": {
+        "payload": {
+          "$ref": "#/components/schemas/Permissions"
+        }
+      },
+      "Accounts": {
+        "payload": {
+          "$ref": "#/components/schemas/Accounts"
+        }
+      },
+      "Account": {
+        "payload": {
+          "$ref": "#/components/schemas/Account"
+        }
+      },
+      "Identity": {
+        "payload": {
+          "$ref": "#/components/schemas/Identity"
+        }
+      },
+      "EmptyMessage": {
+        "payload": {
+          "$ref": "#/components/schemas/EmptySchema"
+        }
+      },
+      "JetStreamConfig": {
+        "payload": {
+          "$ref": "#/components/schemas/JetStreamConfig"
+        }
+      }
+    },
+    "schemas": {
+      "EmptySchema": {
+        "type": "null"
+      },
+      "Accounts": {
+        "type": "array",
+        "items": {
+          "$ref": "#/components/schemas/Account"
+        }
+      },
+      "Account": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "users": {
+            "type": "array",
+            "items": [
+              {
+                "$ref": "#/components/schemas/UserConfig"
+              }
+            ]
+          },
+          "exports": {
+            "type": "array",
+            "items": [
+              {
+                "$ref": "#/components/schemas/ExportConfig"
+              }
+            ]
+          },
+          "imports": {
+            "type": "array",
+            "items": [
+              {
+                "$ref": "#/components/schemas/ImportConfig"
+              }
+            ]
+          },
+          "jetstream": {
+            "type": "array",
+            "items": [
+              {
+                "$ref": "#/components/schemas/JetStreamConfig"
+              }
+            ]
+          }
+        }
+      },
+      "JetStreamConfig": {
+        "type": "object",
+        "additionalProperties": {
+          "$ref": "#/components/schemas/JetStreamAccount"
+        },
+        "properties": {
+          "enabled": {
+            "type": "boolean"
+          },
+          "password": {
+            "type": "string"
+          },
+          "nkey": {
+            "type": "string"
+          }
+        }
+      },
+      "JetStreamAccount": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "max_mem": {
+            "type": "integer"
+          },
+          "max_file": {
+            "type": "integer"
+          },
+          "max_streams": {
+            "type": "integer"
+          },
+          "max_consumers": {
+            "type": "integer"
+          }
+        }
+      },
+      "UserConfig": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "username": {
+            "type": "string"
+          },
+          "password": {
+            "type": "string"
+          },
+          "nkey": {
+            "type": "string"
+          },
+          "permissions": {
+            "$ref": "#/components/schemas/Permissions"
+          }
+        }
+      },
+      "ImportConfig": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "service": {
+            "$ref": "#/components/schemas/GenericImport"
+          },
+          "stream": {
+            "$ref": "#/components/schemas/GenericImport"
+          },
+          "prefix": {
+            "type": "string"
+          },
+          "to": {
+            "type": "string"
+          }
+        }
+      },
+      "GenericImport": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "acocount": {
+            "type": "string"
+          },
+          "subject": {
+            "type": "string"
+          }
+        }
+      },
+      "ExportConfig": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "stream": {
+            "type": "string"
+          },
+          "service": {
+            "type": "string"
+          },
+          "Accounts": {
+            "type": "array",
+            "items": [
+              {
+                "type": "string"
+              }
+            ]
+          },
+          "response": {
+            "type": "string"
+          }
+        }
+      },
+      "Permissions": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "publish": {
+            "$ref": "#/components/schemas/PermissionRules"
+          },
+          "subscribe": {
+            "$ref": "#/components/schemas/PermissionRules"
+          },
+          "responses": {
+            "$ref": "#/components/schemas/PermissionRules"
+          }
+        }
+      },
+      "PermissionRules": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "allow": {
+            "type": "array",
+            "items": [
+              {
+                "type": "string"
+              }
+            ]
+          },
+          "deny": {
+            "type": "array",
+            "items": [
+              {
+                "type": "string"
+              }
+            ]
+          }
+        }
+      },
+      "Identity": {
+        "oneOf": [
+          {
+            "$ref": "#/components/schemas/UserPass"
+          },
+          {
+            "$ref": "#/components/schemas/NkeyUser"
+          },
+          {
+            "$ref": "#/components/schemas/CertUser"
+          }
+        ]
+      },
+      "UserPass": {
+        "type": "object",
+        "properties": {
+          "username": {
+            "type": "string"
+          },
+          "password": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "NkeyUser": {
+        "type": "object",
+        "properties": {
+          "nkey": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "CertUser": {
+        "type": "object",
+        "properties": {
+          "username": {
+            "type": "string"
+          },
+          "permissions": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      }
+    }
+  }
+}
