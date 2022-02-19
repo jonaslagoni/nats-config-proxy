@@ -11,7 +11,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nats-io/nats-rest-config-proxy/internal/server"
+	"github.com/nats-io/nats-config-proxy/internal/server"
 	gnatsd "github.com/nats-io/nats-server/v2/test"
 	nats "github.com/nats-io/nats.go"
 )
@@ -22,7 +22,7 @@ func TestTLSSetup(t *testing.T) {
 	opts.CaFile = "certs/ca.pem"
 	opts.CertFile = "certs/server.pem"
 	opts.KeyFile = "certs/server-key.pem"
-	s := server.NewServer(opts)
+	s := server.NewHttpServer(opts)
 	host := fmt.Sprintf("https://%s:%d", opts.Host, opts.Port)
 	ctx, done := context.WithTimeout(context.Background(), 5*time.Second)
 	go s.Run(ctx)
@@ -72,7 +72,7 @@ func TestTLSAuth(t *testing.T) {
 	opts.CertFile = "certs/server.pem"
 	opts.KeyFile = "certs/server-key.pem"
 	opts.HTTPUsers = []string{"CN=cncf.example.com,OU=CNCF", "CN=nats.example.com,OU=NATS.io"}
-	s := server.NewServer(opts)
+	s := server.NewHttpServer(opts)
 	host := fmt.Sprintf("https://%s:%d", opts.Host, opts.Port)
 	ctx, done := context.WithTimeout(context.Background(), 5*time.Second)
 	go s.Run(ctx)
@@ -173,7 +173,7 @@ func TestTLSAuthFullCycle(t *testing.T) {
 	opts.DataDir = dir
 	defer os.RemoveAll(dir)
 
-	s := server.NewServer(opts)
+	s := server.NewHttpServer(opts)
 	host := fmt.Sprintf("http://%s:%d", opts.Host, opts.Port)
 	ctx, _ := context.WithTimeout(context.Background(), 15*time.Second)
 	time.AfterFunc(30*time.Second, func() {
@@ -394,7 +394,7 @@ func TestTLSAuthFullCycleWithAccounts(t *testing.T) {
 	opts.DataDir = dir
 	defer os.RemoveAll(dir)
 
-	s := server.NewServer(opts)
+	s := server.NewHttpServer(opts)
 	host := fmt.Sprintf("http://%s:%d", opts.Host, opts.Port)
 	ctx, _ := context.WithTimeout(context.Background(), 15*time.Second)
 	time.AfterFunc(30*time.Second, func() {

@@ -23,17 +23,16 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
-	"path/filepath"
 	"strconv"
 	"sync"
 	"syscall"
 	"time"
 
-	lumberjack "gopkg.in/natefinch/lumberjack.v2"
+	"gopkg.in/natefinch/lumberjack.v2"
 )
 
-// Server is the NATS ACL Proxy server.
-type Server struct {
+// HttpServer is the NATS ACL Proxy server.
+type HttpServer struct {
 	mu sync.Mutex
 
 	// opts is the set of options.
@@ -47,20 +46,27 @@ type Server struct {
 
 	// http is the http server.
 	http *http.Server
+
+	// store is the underlying storage handler
+	store *Store
 }
 
-// NewServer returns a configured server.
-func NewServer(opts *Options) *Server {
+// NewHttpServer returns a configured server.
+func NewHttpServer(opts *Options) *HttpServer {
 	if opts == nil {
 		opts = &Options{}
 	}
-	return &Server{
+	store := &Store{
 		opts: opts,
+	}
+	return &HttpServer{
+		opts:  opts,
+		store: store,
 	}
 }
 
 // Run starts the server.
-func (s *Server) Run(ctx context.Context) error {
+func (s *HttpServer) Run(ctx context.Context) error {
 	if !s.opts.NoSignals {
 		go s.SetupSignalHandler(ctx)
 	}
@@ -68,7 +74,7 @@ func (s *Server) Run(ctx context.Context) error {
 	ctx, done := context.WithCancel(ctx)
 
 	// Logging configuration.
-	l := NewLogger(s.opts)
+	l := Newlogger(s.opts)
 	l.debug = s.opts.Debug
 	l.trace = s.opts.Trace
 	switch {
@@ -104,7 +110,7 @@ func (s *Server) Run(ctx context.Context) error {
 	s.log.Infof("Starting %s v%s", AppName, Version)
 
 	// Create required directories for storage if not present.
-	err := s.setupStoreDirectories()
+	err := s.store.setupStoreDirectories()
 	if err != nil {
 		defer s.quit()
 		return err
@@ -125,7 +131,7 @@ func (s *Server) Run(ctx context.Context) error {
 
 // ListenAndServe takes the network address and port that
 // the HTTP server should bind to and starts it.
-func (s *Server) ListenAndServe(addr string) error {
+func (s *HttpServer) ListenAndServe(addr string) error {
 	var (
 		l       net.Listener
 		useTLS  bool = s.opts.CertFile != ""
@@ -171,7 +177,7 @@ func (s *Server) ListenAndServe(addr string) error {
 	mux.HandleFunc("/v2/auth/validate/", s.HandleValidateSnapshotV2)
 	mux.HandleFunc("/v2/auth/publish", s.HandlePublishV2)
 	mux.HandleFunc("/v2/auth/publish/", s.HandlePublishV2)
-	mux.HandleFunc("/v2/auth/jetstream", s.HandleGlobalJetStream)
+	mux.HandleFunc("/v2/auth/jetstream", s.HandleGlobalJetstream)
 	srv := &http.Server{
 		Addr:           addr,
 		Handler:        mux,
@@ -186,7 +192,7 @@ func (s *Server) ListenAndServe(addr string) error {
 }
 
 // Shutdown stops the server.
-func (s *Server) Shutdown(ctx context.Context) error {
+func (s *HttpServer) Shutdown(ctx context.Context) error {
 	var err error
 	s.log.Infof("Shutting down...")
 	if s.http != nil {
@@ -201,7 +207,7 @@ func (s *Server) Shutdown(ctx context.Context) error {
 }
 
 // SetupSignalHandler enables handling process signals.
-func (s *Server) SetupSignalHandler(ctx context.Context) {
+func (s *HttpServer) SetupSignalHandler(ctx context.Context) {
 	sigCh := make(chan os.Signal, 1)
 	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM, syscall.SIGHUP)
 
@@ -231,28 +237,8 @@ func (s *Server) SetupSignalHandler(ctx context.Context) {
 	}
 }
 
-// Storage directories
-
-func (s *Server) resourcesDir() string {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	return filepath.Join(s.opts.DataDir, ResourcesDir)
-}
-
-func (s *Server) snapshotsDir() string {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	return filepath.Join(s.opts.DataDir, SnapshotsDir)
-}
-
-func (s *Server) currentConfigDir() string {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	return filepath.Join(s.opts.DataDir, CurrentConfigDir)
-}
-
 // generateTLSConfig the TLS config for https.
-func (s *Server) generateTLSConfig() (*tls.Config, error) {
+func (s *HttpServer) generateTLSConfig() (*tls.Config, error) {
 	//  Load in cert and private key
 	cert, err := tls.LoadX509KeyPair(s.opts.CertFile, s.opts.KeyFile)
 	if err != nil {

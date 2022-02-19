@@ -11,32 +11,33 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-package main
+package server
 
 import (
-	"context"
 	"fmt"
-	"log"
-	"math/rand"
-	"os"
-	"time"
 
-	"github.com/nats-io/nats-config-proxy/internal/server"
+	"github.com/nats-io/nats-config-proxy/internal/models"
+	"github.com/nats-io/nats-config-proxy/internal/natsclient"
 )
 
-func main() {
-	rand.Seed(time.Now().UnixNano())
+type Empty struct {
+}
+type ErrorMessage struct {
+	description string
+}
+type NatsHandler struct {
+	store *Store
+	nc    *natsclient.Client
+}
 
-	opts, err := server.ConfigureOptions(os.Args[1:])
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "%s\n", err)
-		os.Exit(1)
-	}
-
-	s := server.NewHttpServer(opts)
-	err = s.Run(context.Background())
-	if err != nil && err != context.Canceled {
-		log.Println(err.Error())
-		os.Exit(1)
-	}
+// HandlePerm handles a request to create/update permissions.
+func (nsh *NatsHandler) HandleNats() {
+	nsh.nc.SubscribeToAccountsV1AuthIdentsDelete(func(m *models.User) {
+		err := nsh.store.deleteAllUsers()
+		if err != nil {
+			fmt.Errorf("Could not delete all users %q", err)
+		} else {
+			fmt.Printf("deleted all users, OK.")
+		}
+	})
 }

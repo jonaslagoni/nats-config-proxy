@@ -15,9 +15,9 @@ package server
 
 import "testing"
 
-func TestLoggerNoColors(t *testing.T) {
+func TestloggerNoColors(t *testing.T) {
 	opts := &Options{NoColors: true, LogFile: "foo.log"}
-	l := NewLogger(opts)
+	l := Newlogger(opts)
 
 	got := l.debugLabel
 	expected := "[DBG] "

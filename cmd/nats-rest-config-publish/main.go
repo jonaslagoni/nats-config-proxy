@@ -10,7 +10,7 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/nats-io/nats-rest-config-proxy/internal/server"
+	"github.com/nats-io/nats-config-proxy/internal/server"
 )
 
 const usageStr = `
@@ -61,7 +61,7 @@ func main() {
 		os.Exit(0)
 	}
 
-	s := server.NewServer(opts)
+	s := server.NewHttpServer(opts)
 
 	if snapshotName == "" {
 		snapshotName = server.DefaultSnapshotName

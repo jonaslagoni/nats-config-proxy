@@ -200,8 +200,8 @@ First we will start the server, and use the `-d` flag to setup the directory tha
 
 ```
 $ mkdir config
-$ nats-rest-config-proxy -DV -d config
-[5875] 2019/06/18 14:43:44.826782 [INF] Starting nats-rest-config-proxy v0.1.0
+$ nats-config-proxy -DV -d config
+[5875] 2019/06/18 14:43:44.826782 [INF] Starting nats-config-proxy v0.1.0
 [5875] 2019/06/18 14:43:44.829134 [INF] Listening on 0.0.0.0:4567
 ```
 
@@ -406,8 +406,8 @@ Start the server using its own data directory:
 
 ```
 $ mkdir config
-$ nats-rest-config-proxy -DV -d config
-[5875] 2019/06/18 14:43:44.826782 [INF] Starting nats-rest-config-proxy v0.1.0
+$ nats-config-proxy -DV -d config
+[5875] 2019/06/18 14:43:44.826782 [INF] Starting nats-config-proxy v0.1.0
 [5875] 2019/06/18 14:43:44.829134 [INF] Listening on 0.0.0.0:4567
 ```
 
@@ -547,7 +547,7 @@ include "config/current/accounts/auth.conf"
 
 ### Validation tool
 
-Release [v0.4.0](https://github.com/nats-io/nats-rest-config-proxy/releases/tag/v0.4.0)
+Release [v0.4.0](https://github.com/nats-io/nats-config-proxy/releases/tag/v0.4.0)
 also now includes a `nats-rest-config-validator` tool
 which can be used to verify whether the `resources` are in a valid state
 and otherwise report the error.
@@ -631,7 +631,7 @@ Error: On /bar.json : {
 
 ### Snapshot/Publishing tool
 
-Release [v0.5.0](https://github.com/nats-io/nats-rest-config-proxy/releases/tag/v0.5.0)
+Release [v0.5.0](https://github.com/nats-io/nats-config-proxy/releases/tag/v0.5.0)
 includes a couple of tools to create and publish snapshots without having to start the server,
 the `nats-rest-config-snapshot` and `nats-rest-config-publish` tools.
 

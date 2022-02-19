@@ -1,10 +1,10 @@
 # The NATS REST Configuration Proxy Release Process
 
-The NATS REST Configuration Proxy release process creates releases when a new Github tag is generated and pushed.  It uses [goreleaser](https://goreleaser.com/) to to do this.  To add plaforms, architectures, and assets, modify [.goreleaser.yaml](https://github.com/nats-io/nats-rest-config-proxy/blob/master/.goreleaser.yml).  This document is for maintainers with push access to the repo.
+The NATS REST Configuration Proxy release process creates releases when a new Github tag is generated and pushed.  It uses [goreleaser](https://goreleaser.com/) to to do this.  To add plaforms, architectures, and assets, modify [.goreleaser.yaml](https://github.com/nats-io/nats-config-proxy/blob/master/.goreleaser.yml).  This document is for maintainers with push access to the repo.
 
 ## Steps to create a new release
 
-Determine your release version.  For these instructions, we'll use `v0.0.1-test` as an example.  Visit the [releases](https://github.com/nats-io/nats-rest-config-proxy/releases) page and **MAKE SURE YOU DO NOT DUPLICATE A RELEASE!**
+Determine your release version.  For these instructions, we'll use `v0.0.1-test` as an example.  Visit the [releases](https://github.com/nats-io/nats-config-proxy/releases) page and **MAKE SURE YOU DO NOT DUPLICATE A RELEASE!**
 
 ### 1) Update docker files
 
@@ -13,13 +13,13 @@ Modify the docker files to pull down your future release.
 In the dockerfiles modify the git clone command:
 
 ```text
-RUN git clone --branch <your new release tag> https://github.com/nats-io/nats-rest-config-proxy.git .
+RUN git clone --branch <your new release tag> https://github.com/nats-io/nats-config-proxy.git .
 ```
 
 For example:
 
 ```text
-RUN git clone --branch v0.0.1-test https://github.com/nats-io/nats-rest-config-proxy.git .
+RUN git clone --branch v0.0.1-test https://github.com/nats-io/nats-config-proxy.git .
 ```
 
 Create a PR and merge into master.
@@ -45,7 +45,7 @@ Enumerating objects: 1, done.
 Counting objects: 100% (1/1), done.
 Writing objects: 100% (1/1), 168 bytes | 168.00 KiB/s, done.
 Total 1 (delta 0), reused 0 (delta 0)
-To github.com:nats-io/nats-rest-config-proxy
+To github.com:nats-io/nats-config-proxy
  * [new tag]         v0.0.1-test -> v0.0.1-test
 ```
 
@@ -70,7 +70,7 @@ At this point, you have tagged the repo with your new version and have a draft r
 
 ### 4) Edit the Release on Github
 
-Check the [releases](https://github.com/nats-io/nats-rest-config-proxy/releases) page, and you should see a draft release generated from your tag, along with compiled binaries.  If the release and assets aren't present, check the Travis CI logs for errors, delete the draft release and tag, and start over.
+Check the [releases](https://github.com/nats-io/nats-config-proxy/releases) page, and you should see a draft release generated from your tag, along with compiled binaries.  If the release and assets aren't present, check the Travis CI logs for errors, delete the draft release and tag, and start over.
 
 ### 5) Publish the release
 

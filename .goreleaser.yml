@@ -1,20 +1,20 @@
 # This is an example goreleaser.yaml file with some sane defaults.
 # Make sure to check the documentation at http://goreleaser.com
-project_name: nats-rest-config-proxy
+project_name: nats-config-proxy
 
 release:
   draft: true
   github:
     owner: nats-io
-    name: nats-rest-config-proxy
+    name: nats-config-proxy
 
   name_template: 'Release {{.Tag}}'
 
 builds:
-- id: nats-rest-config-proxy
-  main: ./cmd/nats-rest-config-proxy/main.go
+- id: nats-config-proxy
+  main: ./cmd/nats-config-proxy/main.go
   ldflags: -s -w
-  binary: nats-rest-config-proxy
+  binary: nats-config-proxy
   env:
     - CGO_ENABLED=0
   goos:

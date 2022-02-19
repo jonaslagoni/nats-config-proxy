@@ -30,7 +30,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nats-io/nats-rest-config-proxy/api"
+	"github.com/nats-io/nats-config-proxy/internal/models"
 )
 
 func createFixtures(t *testing.T, host string) {
@@ -135,11 +135,11 @@ func TestIdentsHandler(t *testing.T) {
 	if resp.StatusCode != 200 {
 		t.Fatalf("Expected OK, got: %v", resp.StatusCode)
 	}
-	ur, err := s.getUserResource("sample-user")
+	ur, err := s.store.getUserResource("sample-user")
 	if err != nil {
 		t.Fatal(err)
 	}
-	expected := &api.User{
+	expected := &models.User{
 		Username:    "sample-user",
 		Password:    "secret",
 		Permissions: "normal-user",
@@ -216,15 +216,15 @@ func TestPermsHandler(t *testing.T) {
 	if resp.StatusCode != 200 {
 		t.Fatalf("Expected OK, got: %v", resp.StatusCode)
 	}
-	ur, err := s.getPermissionResource("normal-user")
+	ur, err := s.store.getPermissionResource("normal-user")
 	if err != nil {
 		t.Fatal(err)
 	}
-	expected := &api.Permissions{
-		Publish: &api.PermissionRules{
+	expected := &models.Permissions{
+		Publish: &models.PermissionRules{
 			Allow: []string{"foo", "bar"},
 		},
-		Subscribe: &api.PermissionRules{
+		Subscribe: &models.PermissionRules{
 			Deny: []string{"quux"},
 		},
 	}
@@ -272,7 +272,7 @@ echo 'Publishing script...' > ./artifact.log
 		t.Fatalf("Expected OK, got: %v", resp.StatusCode)
 	}
 
-	config, err := s.getCurrentConfig()
+	config, err := s.store.getCurrentConfig()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -371,7 +371,7 @@ exit 1
 		t.Fatalf("Expected internal server error, got: %v", resp.StatusCode)
 	}
 
-	config, err := s.getCurrentConfig()
+	config, err := s.store.getCurrentConfig()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -541,7 +541,7 @@ func TestDeletePermissions(t *testing.T) {
 		t.Fatalf("Expected OK, got: %v", resp.StatusCode)
 	}
 
-	config, err := s.getCurrentConfig()
+	config, err := s.store.getCurrentConfig()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -592,7 +592,7 @@ func TestDeleteAllUsers(t *testing.T) {
 		t.Fatalf("Expected OK, got: %v", resp.StatusCode)
 	}
 
-	config, err := s.getCurrentConfig()
+	config, err := s.store.getCurrentConfig()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -673,7 +673,7 @@ func TestDeleteAllPermissions(t *testing.T) {
 		t.Fatalf("Expected OK, got: %v", resp.StatusCode)
 	}
 
-	var p map[string]*api.Permissions
+	var p map[string]*models.Permissions
 	err = json.Unmarshal(data, &p)
 	if err != nil {
 		t.Fatal(err)
@@ -731,25 +731,25 @@ func TestPermsList(t *testing.T) {
 		t.Fatalf("Expected OK, got: %v", resp.StatusCode)
 	}
 
-	var perms map[string]*api.Permissions
+	var perms map[string]*models.Permissions
 	err = json.Unmarshal(data, &perms)
 	if err != nil {
 		t.Fatal(err)
 	}
-	expected := map[string]*api.Permissions{
-		"admin-user": &api.Permissions{
-			Publish: &api.PermissionRules{
+	expected := map[string]*models.Permissions{
+		"admin-user": &models.Permissions{
+			Publish: &models.PermissionRules{
 				Allow: []string{">"},
 			},
-			Subscribe: &api.PermissionRules{
+			Subscribe: &models.PermissionRules{
 				Allow: []string{">"},
 			},
 		},
-		"normal-user": &api.Permissions{
-			Publish: &api.PermissionRules{
+		"normal-user": &models.Permissions{
+			Publish: &models.PermissionRules{
 				Allow: []string{"hello", "world"},
 			},
-			Subscribe: &api.PermissionRules{
+			Subscribe: &models.PermissionRules{
 				Allow: []string{"public.>"},
 				Deny:  []string{"private.>"},
 			},
@@ -785,18 +785,18 @@ func TestUsersList(t *testing.T) {
 		t.Fatalf("Expected OK, got: %v", resp.StatusCode)
 	}
 
-	var users []*api.User
+	var users []*models.User
 	err = json.Unmarshal(data, &users)
 	if err != nil {
 		t.Fatal(err)
 	}
-	expected := make([]*api.User, 0)
-	firstUser := &api.User{
+	expected := make([]*models.User, 0)
+	firstUser := &models.User{
 		Username:    "first-user",
 		Password:    "secret",
 		Permissions: "normal-user",
 	}
-	secondUser := &api.User{
+	secondUser := &models.User{
 		Username:    "second-user",
 		Password:    "secret",
 		Permissions: "normal-user",
@@ -832,12 +832,12 @@ func TestGetUser(t *testing.T) {
 		t.Fatalf("Expected OK, got: %v", resp.StatusCode)
 	}
 
-	var user *api.User
+	var user *models.User
 	err = json.Unmarshal(data, &user)
 	if err != nil {
 		t.Fatal(err)
 	}
-	expected := &api.User{
+	expected := &models.User{
 		Username:    "first-user",
 		Password:    "secret",
 		Permissions: "normal-user",
@@ -894,16 +894,16 @@ func TestGetSinglePermission(t *testing.T) {
 		t.Fatalf("Expected OK, got: %v", resp.StatusCode)
 	}
 
-	var permission *api.Permissions
+	var permission *models.Permissions
 	err = json.Unmarshal(data, &permission)
 	if err != nil {
 		t.Fatal(err)
 	}
-	expected := &api.Permissions{
-		Publish: &api.PermissionRules{
+	expected := &models.Permissions{
+		Publish: &models.PermissionRules{
 			Allow: []string{">"},
 		},
-		Subscribe: &api.PermissionRules{
+		Subscribe: &models.PermissionRules{
 			Allow: []string{">"},
 		},
 	}
@@ -949,7 +949,7 @@ func TestSnapshotHandler(t *testing.T) {
 		t.Fatalf("Expected OK, got: %v", resp.StatusCode)
 	}
 
-	config, err := s.getConfigSnapshot("latest")
+	config, err := s.store.getConfigSnapshot("latest")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1222,7 +1222,7 @@ func TestSnapshotWithNameHandler(t *testing.T) {
 		t.Fatalf("Expected OK, got: %v", resp.StatusCode)
 	}
 
-	config, err := s.getConfigSnapshot("sample")
+	config, err := s.store.getConfigSnapshot("sample")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1493,7 +1493,7 @@ func TestAccountsHandler(t *testing.T) {
 		name     string
 		account  string
 		payload  string
-		expected *api.Account
+		expected *models.Account
 		err      error
 	}{
 		{
@@ -1505,8 +1505,8 @@ func TestAccountsHandler(t *testing.T) {
                              { "service": "foo.api" }
                            ]
                         }`,
-			&api.Account{
-				Exports: []*api.Export{
+			&models.Account{
+				Exports: []*models.ExportConfig{
 					{
 						Stream: "foo.public.>",
 					},
@@ -1525,8 +1525,8 @@ func TestAccountsHandler(t *testing.T) {
                              { "stream": "bar.public.>", "accounts": ["foo"] }
                            ]
                         }`,
-			&api.Account{
-				Exports: []*api.Export{
+			&models.Account{
+				Exports: []*models.ExportConfig{
 					{
 						Stream:   "bar.public.>",
 						Accounts: []string{"foo"},
@@ -1554,10 +1554,10 @@ func TestAccountsHandler(t *testing.T) {
                              { "stream": {"account": "foo", "subject": "foo.public.>" } }
                            ]
                         }`,
-			&api.Account{
-				Imports: []*api.Import{
+			&models.Account{
+				Imports: []*models.ImportConfig{
 					{
-						Stream: &api.GenericImport{
+						Stream: &models.GenericImport{
 							Account: "foo",
 							Subject: "foo.public.>",
 						},
@@ -1574,10 +1574,10 @@ func TestAccountsHandler(t *testing.T) {
                              { "service": {"account": "foo", "subject": "foo.api" } }
                            ]
                         }`,
-			&api.Account{
-				Imports: []*api.Import{
+			&models.Account{
+				Imports: []*models.ImportConfig{
 					{
-						Service: &api.GenericImport{
+						Service: &models.GenericImport{
 							Account: "foo",
 							Subject: "foo.api",
 						},
@@ -1613,14 +1613,14 @@ func TestAccountsHandler(t *testing.T) {
 			"sample",
 			`{
                            "exports": [
-                             { "service": "foo.api.>" },
+                             { "service": "foo.models.>" },
                              { "service": "foo.*" }
                            ]
                         }`,
-			&api.Account{
-				Exports: []*api.Export{
+			&models.Account{
+				Exports: []*models.ExportConfig{
 					{
-						Service: "foo.api.>",
+						Service: "foo.models.>",
 					},
 					{
 						Service: "foo.*",
@@ -1634,7 +1634,7 @@ func TestAccountsHandler(t *testing.T) {
 			"sample2",
 			`{
                            "imports": [
-                             { "service": { "account": "sample", "subject": "foo.api.>" } }
+                             { "service": { "account": "sample", "subject": "foo.models.>" } }
                            ]
                         }`,
 			nil,
@@ -1662,7 +1662,7 @@ func TestAccountsHandler(t *testing.T) {
 			if resp.StatusCode != 200 {
 				t.Fatalf("Expected OK, got: %v", resp.StatusCode)
 			}
-			acc, err := s.getAccountResource(test.account)
+			acc, err := s.store.getAccountResource(test.account)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -2007,8 +2007,7 @@ echo 'Publishing script...' > ./artifact2.log
       }
     }
   ]
-}
-`
+}`
 	got = string(result)
 	if got != expected {
 		t.Errorf("Expected: %q\nGot: %q", expected, got)
@@ -2029,38 +2028,38 @@ echo 'Publishing script...' > ./artifact2.log
 func TestVerifyIdent(t *testing.T) {
 	cases := []struct {
 		name    string
-		users   []*api.User
-		u       *api.User
+		users   []*models.User
+		u       *models.User
 		wantErr bool
 	}{
 		{
 			name:    "same name, same account",
-			users:   []*api.User{{Username: "foo", Account: "bar"}},
-			u:       &api.User{Username: "foo", Account: "bar"},
+			users:   []*models.User{{Username: "foo", Account: "bar"}},
+			u:       &models.User{Username: "foo", Account: "bar"},
 			wantErr: false,
 		},
 		{
 			name:    "same name, different account",
-			users:   []*api.User{{Username: "foo", Account: "bar"}},
-			u:       &api.User{Username: "foo", Account: "fizz"},
+			users:   []*models.User{{Username: "foo", Account: "bar"}},
+			u:       &models.User{Username: "foo", Account: "fizz"},
 			wantErr: true,
 		},
 		{
 			name:    "same name, different passwords",
-			users:   []*api.User{{Username: "foo", Password: "bar"}},
-			u:       &api.User{Username: "foo", Password: "fizz"},
+			users:   []*models.User{{Username: "foo", Password: "bar"}},
+			u:       &models.User{Username: "foo", Password: "fizz"},
 			wantErr: false,
 		},
 		{
 			name:    "same name, different creds",
-			users:   []*api.User{{Username: "foo", Password: "bar"}},
-			u:       &api.User{Username: "foo", Nkey: "fizz"},
+			users:   []*models.User{{Username: "foo", Password: "bar"}},
+			u:       &models.User{Username: "foo", Nkey: "fizz"},
 			wantErr: false,
 		},
 		{
 			name:    "different accounts, different nkeys",
-			users:   []*api.User{{Account: "foo", Nkey: "fizz"}},
-			u:       &api.User{Account: "bar", Nkey: "buzz"},
+			users:   []*models.User{{Account: "foo", Nkey: "fizz"}},
+			u:       &models.User{Account: "bar", Nkey: "buzz"},
 			wantErr: false,
 		},
 	}
@@ -2087,15 +2086,15 @@ func TestAccountsJetStreamHandler(t *testing.T) {
 	}
 	defer os.RemoveAll(s.opts.DataDir)
 
+	intPtr := func(n int64) *int64 {
+		return &n
+	}
+
 	ctx, done := context.WithTimeout(context.Background(), 2*time.Second)
 	defer done()
 	go s.Run(ctx)
 	defer s.Shutdown(ctx)
 	waitServerIsReady(t, ctx, s)
-
-	intPtr := func(n int64) *int64 {
-		return &n
-	}
 
 	// The order in the following tests is important since there
 	// is state dependent from each other.
@@ -2104,7 +2103,7 @@ func TestAccountsJetStreamHandler(t *testing.T) {
 		name     string
 		account  string
 		payload  string
-		expected *api.Account
+		expected *models.Account
 		err      error
 	}{
 		{
@@ -2113,8 +2112,8 @@ func TestAccountsJetStreamHandler(t *testing.T) {
 			`{
                            "jetstream": {}
                         }`,
-			&api.Account{
-				JetStream: &api.AccountJetStreamConfig{},
+			&models.Account{
+				Jetstream: &models.JetstreamConfig{},
 			},
 			nil,
 		},
@@ -2126,8 +2125,8 @@ func TestAccountsJetStreamHandler(t *testing.T) {
                              "enabled": true
                            }
                         }`,
-			&api.Account{
-				JetStream: &api.AccountJetStreamConfig{
+			&models.Account{
+				Jetstream: &models.JetstreamConfig{
 					Enabled: true,
 				},
 			},
@@ -2145,15 +2144,13 @@ func TestAccountsJetStreamHandler(t *testing.T) {
                              "max_streams": 300
                            }
                         }`,
-			&api.Account{
-				JetStream: &api.AccountJetStreamConfig{
-					true,
-					api.AccountJetStream{
-						MaxMemoryStore: intPtr(536870912),
-						MaxFileStore:   intPtr(536870912),
-						MaxConsumers:   intPtr(200),
-						MaxStreams:     intPtr(300),
-					},
+			&models.Account{
+				Jetstream: &models.JetstreamConfig{
+					Enabled:      true,
+					MaxMem:       intPtr(536870912),
+					MaxFile:      intPtr(536870912),
+					MaxConsumers: intPtr(200),
+					MaxStreams:   intPtr(300),
 				},
 			},
 			nil,
@@ -2170,15 +2167,13 @@ func TestAccountsJetStreamHandler(t *testing.T) {
                              "max_streams": 300
                            }
                         }`,
-			&api.Account{
-				JetStream: &api.AccountJetStreamConfig{
-					true,
-					api.AccountJetStream{
-						MaxMemoryStore: intPtr(536870912),
-						MaxFileStore:   intPtr(536870912),
-						MaxConsumers:   intPtr(200),
-						MaxStreams:     intPtr(300),
-					},
+			&models.Account{
+				Jetstream: &models.JetstreamConfig{
+					Enabled:      true,
+					MaxMem:       intPtr(536870912),
+					MaxFile:      intPtr(536870912),
+					MaxConsumers: intPtr(200),
+					MaxStreams:   intPtr(300),
 				},
 			},
 			nil,
@@ -2192,13 +2187,11 @@ func TestAccountsJetStreamHandler(t *testing.T) {
                              "max_streams": 0
                            }
                         }`,
-			&api.Account{
-				JetStream: &api.AccountJetStreamConfig{
-					true,
-					api.AccountJetStream{
-						MaxConsumers: intPtr(-1),
-						MaxStreams:   intPtr(0),
-					},
+			&models.Account{
+				Jetstream: &models.JetstreamConfig{
+					Enabled:      true,
+					MaxConsumers: intPtr(-1),
+					MaxStreams:   intPtr(0),
 				},
 			},
 			nil,
@@ -2225,7 +2218,7 @@ func TestAccountsJetStreamHandler(t *testing.T) {
 			if resp.StatusCode != 200 {
 				t.Fatalf("Expected OK, got: %v", resp.StatusCode)
 			}
-			acc, err := s.getAccountResource(test.account)
+			acc, err := s.store.getAccountResource(test.account)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -2314,8 +2307,7 @@ func TestAccountsJetStreamHandler(t *testing.T) {
     }
   ],
   "jetstream": {}
-}
-`
+}`
 		got = string(contents)
 		if got != expected {
 			t.Errorf("Expected: %q\nGot: %q", expected, got)
@@ -2338,8 +2330,7 @@ func TestAccountsJetStreamHandler(t *testing.T) {
     "max_streams": 300,
     "max_consumers": 200
   }
-}
-`
+}`
 		got = string(contents)
 		if got != expected {
 			t.Errorf("Expected: %q\nGot: %q", expected, got)
@@ -2362,8 +2353,7 @@ func TestAccountsJetStreamHandler(t *testing.T) {
     "max_streams": 300,
     "max_consumers": 200
   }
-}
-`
+}`
 		got = string(contents)
 		if got != expected {
 			t.Errorf("Expected: %q\nGot: %q", expected, got)
@@ -2384,8 +2374,7 @@ func TestAccountsJetStreamHandler(t *testing.T) {
     "max_streams": 0,
     "max_consumers": -1
   }
-}
-`
+}`
 		got = string(contents)
 		if got != expected {
 			t.Errorf("Expected: %q\nGot: %q", expected, got)
@@ -2513,11 +2502,6 @@ func TestHandleGlobalJetStream(t *testing.T) {
 	defer s.Shutdown(ctx)
 	waitServerIsReady(t, ctx, s)
 
-	intPtr := func(n int64) *int64 {
-		return &n
-	}
-	_ = intPtr
-
 	host := fmt.Sprintf("http://%s:%d", s.opts.Host, s.opts.Port)
 	jsEndpoint := fmt.Sprintf("%s/v2/auth/jetstream", host)
 	snapshotEndpoint := fmt.Sprintf("%s/v2/auth/snapshot?name=t1", host)
@@ -2546,7 +2530,7 @@ func TestHandleGlobalJetStream(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if got, want := string(data), "{}\n"; got != want {
+		if got, want := string(data), "{}"; got != want {
 			t.Error("unexpected jetstream data")
 			t.Fatalf("got=%s; want=%s", got, want)
 		}
@@ -2589,8 +2573,7 @@ func TestHandleGlobalJetStream(t *testing.T) {
   "max_file": 10737418240,
   "max_streams": -1,
   "max_consumers": -1
-}
-`
+}`
 		if got, want := string(data), wantConf; got != want {
 			t.Error("unexpected jetstream data")
 			t.Fatalf("got=%q; want=%q", got, want)

@@ -7,7 +7,7 @@ import (
 	"os"
 	"time"
 
-	"github.com/nats-io/nats-rest-config-proxy/internal/server"
+	"github.com/nats-io/nats-config-proxy/internal/server"
 )
 
 const usageStr = `
@@ -55,7 +55,7 @@ func main() {
 		os.Exit(0)
 	}
 
-	s := server.NewServer(opts)
+	s := server.NewHttpServer(opts)
 	fmt.Printf("Taking %q snapshot...\n", snapshotName)
 	if err := s.TakeSnapshot(snapshotName); err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %s\n", err)

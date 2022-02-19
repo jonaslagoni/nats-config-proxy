@@ -2,7 +2,7 @@ language: go
 go:
   - 1.14
 
-go_import_path: github.com/nats-io/nats-rest-config-proxy
+go_import_path: github.com/nats-io/nats-config-proxy
 dist: xenial
 sudo: false
 install: true

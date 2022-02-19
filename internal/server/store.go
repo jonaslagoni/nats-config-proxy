@@ -25,15 +25,22 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 
-	"github.com/nats-io/nats-rest-config-proxy/api"
+	"github.com/nats-io/nats-config-proxy/internal/models"
 	natsserver "github.com/nats-io/nats-server/v2/server"
 )
 
+type Store struct {
+	mu   sync.Mutex
+	log  *logger
+	opts *Options
+}
+
 // storePermissionResource
-func (s *Server) storePermissionResource(name string, permission *api.Permissions) error {
+func (s *Store) storePermissionResource(name string, permission *models.Permissions) error {
 	path := filepath.Join(s.resourcesDir(), "permissions", fmt.Sprintf("%s.json", name))
-	payload, err := permission.AsJSON()
+	payload, err := marshalIndent(permission)
 	if err != nil {
 		return err
 	}
@@ -41,9 +48,9 @@ func (s *Server) storePermissionResource(name string, permission *api.Permission
 }
 
 // storeUserResource
-func (s *Server) storeUserResource(name string, user *api.User) error {
+func (s *Store) storeUserResource(name string, user *models.User) error {
 	path := filepath.Join(s.resourcesDir(), "users", fmt.Sprintf("%s.json", name))
-	payload, err := user.AsJSON()
+	payload, err := marshalIndent(user)
 	if err != nil {
 		return err
 	}
@@ -51,9 +58,9 @@ func (s *Server) storeUserResource(name string, user *api.User) error {
 }
 
 // storeAccountResource
-func (s *Server) storeAccountResource(name string, account *api.Account) error {
+func (s *Store) storeAccountResource(name string, account *models.Account) error {
 	path := filepath.Join(s.resourcesDir(), "accounts", fmt.Sprintf("%s.json", name))
-	payload, err := account.AsJSON()
+	payload, err := marshalIndent(account)
 	if err != nil {
 		return err
 	}
@@ -61,9 +68,9 @@ func (s *Server) storeAccountResource(name string, account *api.Account) error {
 }
 
 // getAllAccountResources reads all account resource files.
-func (s *Server) getAllAccountResources() ([]*api.Account, error) {
+func (s *Store) getAllAccountResources() ([]*models.Account, error) {
 	root := filepath.Join(s.resourcesDir(), "accounts")
-	am := make(map[string]*api.Account)
+	am := make(map[string]*models.Account)
 
 	err := filepath.Walk(root, func(p string, fi os.FileInfo, err error) error {
 		if err != nil {
@@ -79,7 +86,7 @@ func (s *Server) getAllAccountResources() ([]*api.Account, error) {
 			return err
 		}
 
-		var a *api.Account
+		var a *models.Account
 		if err := json.Unmarshal(data, &a); err != nil {
 			return err
 		}
@@ -107,7 +114,7 @@ func (s *Server) getAllAccountResources() ([]*api.Account, error) {
 		}
 
 		// Add user to the Account's Users field.
-		a.Users = append(a.Users, &api.ConfigUser{
+		a.Users = append(a.Users, &models.UserConfig{
 			Username: u.Username,
 			Password: u.Password,
 			Nkey:     u.Nkey,
@@ -115,7 +122,7 @@ func (s *Server) getAllAccountResources() ([]*api.Account, error) {
 		am[u.Account] = a
 	}
 
-	var as []*api.Account
+	var as []*models.Account
 	for _, a := range am {
 		as = append(as, a)
 	}
@@ -123,7 +130,7 @@ func (s *Server) getAllAccountResources() ([]*api.Account, error) {
 }
 
 // getAccountResource reads an account resource from a file.
-func (s *Server) getAccountResource(name string) (u *api.Account, err error) {
+func (s *Store) getAccountResource(name string) (u *models.Account, err error) {
 	path := filepath.Join(s.resourcesDir(), "accounts", fmt.Sprintf("%s.json", name))
 	data, err := ioutil.ReadFile(path)
 	if err != nil {
@@ -137,14 +144,14 @@ func (s *Server) getAccountResource(name string) (u *api.Account, err error) {
 }
 
 // deleteAccountResource deletes an account resource from a file.
-func (s *Server) deleteAccountResource(name string) error {
+func (s *Store) deleteAccountResource(name string) error {
 	path := filepath.Join(s.resourcesDir(), "accounts", fmt.Sprintf("%s.json", name))
 	return os.Remove(path)
 }
 
 // getPermissionResource reads a permissions resource from a file
 // then returns a set of permissions.
-func (s *Server) getPermissionResource(name string) (u *api.Permissions, err error) {
+func (s *Store) getPermissionResource(name string) (u *models.Permissions, err error) {
 	path := filepath.Join(s.resourcesDir(), "permissions", fmt.Sprintf("%s.json", name))
 	data, err := ioutil.ReadFile(path)
 	if err != nil {
@@ -157,9 +164,9 @@ func (s *Server) getPermissionResource(name string) (u *api.Permissions, err err
 	return
 }
 
-// getPermissions returns a map of permissions filename to api.Permissions.
-func (s *Server) getPermissions() (map[string]*api.Permissions, error) {
-	permissions := make(map[string]*api.Permissions)
+// getPermissions returns a map of permissions filename to models.Permissions.
+func (s *Store) getPermissions() (map[string]*models.Permissions, error) {
+	permissions := make(map[string]*models.Permissions)
 	files, err := ioutil.ReadDir(filepath.Join(s.resourcesDir(), "permissions"))
 	if err != nil {
 		return nil, err
@@ -177,9 +184,9 @@ func (s *Server) getPermissions() (map[string]*api.Permissions, error) {
 	return permissions, nil
 }
 
-// getAccounts returns a map of account filename to api.Account.
-func (s *Server) getAccounts() (map[string]*api.Account, error) {
-	accounts := make(map[string]*api.Account)
+// getAccounts returns a map of account filename to models.Account.
+func (s *Store) getAccounts() (map[string]*models.Account, error) {
+	accounts := make(map[string]*models.Account)
 	files, err := ioutil.ReadDir(filepath.Join(s.resourcesDir(), "accounts"))
 	if err != nil {
 		return nil, err
@@ -198,8 +205,8 @@ func (s *Server) getAccounts() (map[string]*api.Account, error) {
 }
 
 // getUsers returns a set of users.
-func (s *Server) getUsers() ([]*api.User, error) {
-	users := make([]*api.User, 0)
+func (s *Store) getUsers() ([]*models.User, error) {
+	users := make([]*models.User, 0)
 	files, err := ioutil.ReadDir(filepath.Join(s.resourcesDir(), "users"))
 	if err != nil {
 		return nil, err
@@ -217,7 +224,7 @@ func (s *Server) getUsers() ([]*api.User, error) {
 	return users, nil
 }
 
-func (s *Server) deleteAllUsers() error {
+func (s *Store) deleteAllUsers() error {
 	files, err := ioutil.ReadDir(filepath.Join(s.resourcesDir(), "users"))
 	if err != nil {
 		return err
@@ -233,7 +240,7 @@ func (s *Server) deleteAllUsers() error {
 	return nil
 }
 
-func (s *Server) deleteAllPermissions() (bool, error) {
+func (s *Store) deleteAllPermissions() (bool, error) {
 	var conflict bool
 	files, err := ioutil.ReadDir(filepath.Join(s.resourcesDir(), "permissions"))
 	if err != nil {
@@ -264,19 +271,19 @@ func (s *Server) deleteAllPermissions() (bool, error) {
 	return conflict, nil
 }
 
-func (s *Server) deletePermissionResource(name string) error {
+func (s *Store) deletePermissionResource(name string) error {
 	path := filepath.Join(s.resourcesDir(), "permissions", fmt.Sprintf("%s.json", name))
 	return os.Remove(path)
 }
 
 // getUserResource
-func (s *Server) getUserResource(name string) (*api.User, error) {
+func (s *Store) getUserResource(name string) (*models.User, error) {
 	path := filepath.Join(s.resourcesDir(), "users", fmt.Sprintf("%s.json", name))
 	data, err := ioutil.ReadFile(path)
 	if err != nil {
 		return nil, err
 	}
-	var u *api.User
+	var u *models.User
 	err = json.Unmarshal(data, &u)
 	if err != nil {
 		return nil, err
@@ -284,19 +291,19 @@ func (s *Server) getUserResource(name string) (*api.User, error) {
 	return u, nil
 }
 
-func (s *Server) deleteUserResource(name string) error {
+func (s *Store) deleteUserResource(name string) error {
 	path := filepath.Join(s.resourcesDir(), "users", fmt.Sprintf("%s.json", name))
 	return os.Remove(path)
 }
 
 // getConfigSnapshot
-func (s *Server) getConfigSnapshot(name string) ([]byte, error) {
+func (s *Store) getConfigSnapshot(name string) ([]byte, error) {
 	path := filepath.Join(s.snapshotsDir(), fmt.Sprintf("%s.json", name))
 	return ioutil.ReadFile(path)
 }
 
 // publishConfigSnapshotV2
-func (s *Server) publishConfigSnapshotV2(name string) error {
+func (s *Store) publishConfigSnapshotV2(name string) error {
 	from := filepath.Join(s.snapshotsDir(), name)
 	if _, err := os.Stat(from); err != nil && os.IsNotExist(err) {
 		return fmt.Errorf("Snapshot named %q does not exist!", name)
@@ -312,27 +319,27 @@ func (s *Server) publishConfigSnapshotV2(name string) error {
 	return cmd.Run()
 }
 
-func (s *Server) deleteConfigSnapshot(name string) error {
+func (s *Store) deleteConfigSnapshot(name string) error {
 	path := filepath.Join(s.snapshotsDir(), fmt.Sprintf("%s.json", name))
 	return os.Remove(path)
 }
 
-func (s *Server) deleteConfigSnapshotV2(name string) error {
+func (s *Store) deleteConfigSnapshotV2(name string) error {
 	snapDir := filepath.Join(s.snapshotsDir(), name)
 	return os.RemoveAll(snapDir)
 }
 
 // buildConfigSnapshot will create the configuration with the users and permission
 // including the accounts.
-func (s *Server) buildConfigSnapshot(name string) error {
+func (s *Store) buildConfigSnapshot(name string) error {
 	permissions, err := s.getPermissions()
 	if err != nil {
 		return err
 	}
 
 	// Users that belong to the global account.
-	users := make([]*api.ConfigUser, 0)
-	accounts := make(map[string]*api.Account)
+	users := make([]*models.UserConfig, 0)
+	accounts := make(map[string]*models.Account)
 	files, err := ioutil.ReadDir(filepath.Join(s.resourcesDir(), "users"))
 	if err != nil {
 		return err
@@ -349,7 +356,7 @@ func (s *Server) buildConfigSnapshot(name string) error {
 		if !ok {
 			s.log.Warnf("User %q will use default permissions", u.Username)
 		}
-		user := &api.ConfigUser{
+		user := &models.UserConfig{
 			Permissions: p,
 		}
 		if u.Username != "" {
@@ -370,12 +377,12 @@ func (s *Server) buildConfigSnapshot(name string) error {
 				if err != nil {
 					return err
 				}
-				ausers := make([]*api.ConfigUser, 0)
-				account = &api.Account{
+				ausers := make([]*models.UserConfig, 0)
+				account = &models.Account{
 					Users:     ausers,
 					Exports:   acc.Exports,
 					Imports:   acc.Imports,
-					JetStream: acc.JetStream,
+					Jetstream: acc.Jetstream,
 				}
 				accounts[u.Account] = account
 			}
@@ -386,11 +393,11 @@ func (s *Server) buildConfigSnapshot(name string) error {
 		}
 	}
 
-	ac := &api.AuthConfig{
+	ac := &models.AuthConfig{
 		Users:    users,
 		Accounts: accounts,
 	}
-	conf, err := ac.AsJSON()
+	conf, err := marshalIndent(ac)
 	if err != nil {
 		return err
 	}
@@ -404,7 +411,7 @@ func (s *Server) buildConfigSnapshot(name string) error {
 
 // buildConfigSnapshotV2 will create the configuration with the users and permission
 // including the accounts.
-func (s *Server) buildConfigSnapshotV2(snapshotName string) error {
+func (s *Store) buildConfigSnapshotV2(snapshotName string) error {
 	// Load permissions map for the users
 	permissions, err := s.getPermissions()
 	if err != nil {
@@ -425,8 +432,8 @@ func (s *Server) buildConfigSnapshotV2(snapshotName string) error {
 		return err
 	}
 
-	// Convert api.User to api.ConfigUser.
-	var globalUsers []*api.ConfigUser
+	// Convert models.User to models.UserConfig.
+	var globalUsers []*models.UserConfig
 	for _, f := range userFiles {
 		basename := f.Name()
 		name := strings.TrimSuffix(basename, filepath.Ext(basename))
@@ -440,7 +447,7 @@ func (s *Server) buildConfigSnapshotV2(snapshotName string) error {
 		if !ok {
 			// User will use default permissions.
 		}
-		user := &api.ConfigUser{
+		user := &models.UserConfig{
 			Permissions: p,
 		}
 
@@ -480,14 +487,14 @@ func (s *Server) buildConfigSnapshotV2(snapshotName string) error {
 	for accName, account := range accounts {
 		account.Users = mergeDuplicateUsers(account.Users)
 
-		if account.JetStream != nil && account.JetStream.Enabled {
+		if account.Jetstream != nil && account.Jetstream.Enabled {
 			// NOTE: We are disabling here in order to prevent
 			// enabled field from becoming part of the NATS config.
-			account.JetStream.Enabled = false
+			account.Jetstream.Enabled = false
 		}
 
 		// Store each one of the accounts here.
-		acc, err := account.AsJSON()
+		acc, err := marshalIndent(account)
 		if err != nil {
 			return err
 		}
@@ -501,16 +508,16 @@ func (s *Server) buildConfigSnapshotV2(snapshotName string) error {
 	globalUsers = mergeDuplicateUsers(globalUsers)
 
 	var includeJetStreamConf bool
-	jsc, err := s.getGloablJetStream()
+	jsc, err := s.getGlobalJetstream()
 	if err != nil && !errors.Is(err, os.ErrNotExist) {
 		return err
 	} else if err == nil {
 		includeJetStreamConf = true
-		data, err := marshalIndent(jsc)
+		data, err := s.marshalIndent(jsc)
 		if err != nil {
 			return err
 		}
-		if err := s.storeGlobalJetStreamSnapshot(snapshotName, data); err != nil {
+		if err := s.storeGlobalJetstreamSnapshot(snapshotName, data); err != nil {
 			return err
 		}
 	}
@@ -519,13 +526,13 @@ func (s *Server) buildConfigSnapshotV2(snapshotName string) error {
 	var authIncludes string
 	if len(globalUsers) > 0 {
 		type globalUsersConfig struct {
-			Users []*api.ConfigUser `json:"users"`
+			Users []*models.UserConfig `json:"users"`
 		}
 		gusers := &globalUsersConfig{
 			Users: globalUsers,
 		}
 
-		u, err := marshalIndent(gusers)
+		u, err := s.marshalIndent(gusers)
 		if err != nil {
 			return err
 		}
@@ -551,8 +558,8 @@ func (s *Server) buildConfigSnapshotV2(snapshotName string) error {
 // mergeDuplicateUsers takes an array of users and merges the permissions of
 // users that have the same name. The caller should make sure that all of the
 // users in the given array are from the same account.
-func mergeDuplicateUsers(users []*api.ConfigUser) []*api.ConfigUser {
-	m := make(map[string]*api.ConfigUser)
+func mergeDuplicateUsers(users []*models.UserConfig) []*models.UserConfig {
+	m := make(map[string]*models.UserConfig)
 
 	for _, u := range users {
 		key := u.Username + u.Password + u.Nkey
@@ -572,7 +579,7 @@ func mergeDuplicateUsers(users []*api.ConfigUser) []*api.ConfigUser {
 		m[key] = u
 	}
 
-	deduped := make([]*api.ConfigUser, 0, len(m))
+	deduped := make([]*models.UserConfig, 0, len(m))
 	for _, user := range m {
 		deduped = append(deduped, user)
 	}
@@ -580,14 +587,14 @@ func mergeDuplicateUsers(users []*api.ConfigUser) []*api.ConfigUser {
 	return deduped
 }
 
-func mergeUserPermissions(a, b *api.Permissions) *api.Permissions {
+func mergeUserPermissions(a, b *models.Permissions) *models.Permissions {
 	if a == nil && b == nil {
 		return nil
 	}
 
 	var (
-		publish   *api.PermissionRules
-		subscribe *api.PermissionRules
+		publish   *models.PermissionRules
+		subscribe *models.PermissionRules
 	)
 	if a.Publish == nil {
 		publish = b.Publish
@@ -604,13 +611,13 @@ func mergeUserPermissions(a, b *api.Permissions) *api.Permissions {
 	} else {
 		subscribe = mergePermissionRules(a.Subscribe, b.Subscribe)
 	}
-	return &api.Permissions{
+	return &models.Permissions{
 		Publish:   publish,
 		Subscribe: subscribe,
 	}
 }
 
-func mergePermissionRules(a, b *api.PermissionRules) *api.PermissionRules {
+func mergePermissionRules(a, b *models.PermissionRules) *models.PermissionRules {
 	if a == nil && b == nil {
 		return nil
 	}
@@ -618,7 +625,7 @@ func mergePermissionRules(a, b *api.PermissionRules) *api.PermissionRules {
 	allow := mergeStringSlices(a.Allow, b.Allow)
 	deny := mergeStringSlices(a.Deny, b.Deny)
 
-	return &api.PermissionRules{
+	return &models.PermissionRules{
 		Allow: allow,
 		Deny:  deny,
 	}
@@ -646,7 +653,7 @@ func mergeStringSlices(a, b []string) []string {
 	return dd
 }
 
-func (s *Server) validateSnapshotConfigV2(name string) error {
+func (s *Store) validateSnapshotConfigV2(name string) error {
 	pt := filepath.Join(s.snapshotsDir(), name)
 	p := filepath.Join(pt, "auth.conf")
 	_, e := natsserver.ProcessConfigFile(p)
@@ -698,37 +705,37 @@ ReportError:
 	return nil
 }
 
-func (s *Server) storeSnapshot(name string, payload []byte) error {
+func (s *Store) storeSnapshot(name string, payload []byte) error {
 	path := filepath.Join(s.snapshotsDir(), fmt.Sprintf("%s.json", name))
 	return ioutil.WriteFile(path, payload, 0666)
 }
 
-func (s *Server) storeSnapshotConfigV2(name string, payload []byte) error {
+func (s *Store) storeSnapshotConfigV2(name string, payload []byte) error {
 	path := filepath.Join(s.snapshotsDir(), name, "auth.conf")
 	return ioutil.WriteFile(path, payload, 0666)
 }
 
-func (s *Server) storeConfigV2(data []byte) error {
+func (s *Store) storeConfigV2(data []byte) error {
 	path := filepath.Join(s.currentConfigDir(), "auth.conf")
 	return ioutil.WriteFile(path, data, 0666)
 }
 
-func (s *Server) storeConfig(data []byte) error {
+func (s *Store) storeConfig(data []byte) error {
 	path := filepath.Join(s.currentConfigDir(), "auth.json")
 	return ioutil.WriteFile(path, data, 0666)
 }
 
-func (s *Server) storeAccountSnapshot(snapshotName string, accName string, payload []byte) error {
+func (s *Store) storeAccountSnapshot(snapshotName string, accName string, payload []byte) error {
 	path := filepath.Join(s.snapshotsDir(), snapshotName, fmt.Sprintf("%s.json", accName))
 	return ioutil.WriteFile(path, payload, 0666)
 }
 
-func (s *Server) getCurrentConfig() ([]byte, error) {
+func (s *Store) getCurrentConfig() ([]byte, error) {
 	path := filepath.Join(s.currentConfigDir(), "auth.json")
 	return ioutil.ReadFile(path)
 }
 
-func (s *Server) setupStoreDirectories() error {
+func (s *Store) setupStoreDirectories() error {
 	if err := os.MkdirAll(s.currentConfigDir(), 0755); err != nil {
 		return err
 	}
@@ -749,9 +756,11 @@ func (s *Server) setupStoreDirectories() error {
 	}
 	return nil
 }
-
-func (s *Server) storeGlobalJetStream(c *api.GlobalJetStream) error {
-	data, err := marshalIndent(c)
+func (s *Store) marshalIndent(m interface{}) ([]byte, error) {
+	return json.MarshalIndent(m, "", "  ")
+}
+func (s *Store) storeGlobalJetstream(c *models.JetstreamGlobalConfig) error {
+	data, err := s.marshalIndent(c)
 	if err != nil {
 		return err
 	}
@@ -760,19 +769,19 @@ func (s *Server) storeGlobalJetStream(c *api.GlobalJetStream) error {
 	return ioutil.WriteFile(path, data, 0666)
 }
 
-func (s *Server) storeGlobalJetStreamSnapshot(name string, payload []byte) error {
+func (s *Store) storeGlobalJetstreamSnapshot(name string, payload []byte) error {
 	path := filepath.Join(s.snapshotsDir(), name, "jetstream.json")
 	return ioutil.WriteFile(path, payload, 0666)
 }
 
-func (s *Server) getGloablJetStream() (*api.GlobalJetStream, error) {
+func (s *Store) getGlobalJetstream() (*models.JetstreamGlobalConfig, error) {
 	path := filepath.Join(s.resourcesDir(), "jetstream", "jetstream.json")
 	data, err := ioutil.ReadFile(path)
 	if err != nil {
 		return nil, err
 	}
 
-	var c *api.GlobalJetStream
+	var c *models.JetstreamGlobalConfig
 	if err := json.Unmarshal(data, &c); err != nil {
 		return nil, err
 	}
@@ -780,7 +789,27 @@ func (s *Server) getGloablJetStream() (*api.GlobalJetStream, error) {
 	return c, nil
 }
 
-func (s *Server) deleteGlobalJetStream() error {
+func (s *Store) deleteGlobalJetstream() error {
 	path := filepath.Join(s.resourcesDir(), "jetstream", "jetstream.json")
 	return os.Remove(path)
+}
+
+// Storage directories
+
+func (s *Store) resourcesDir() string {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return filepath.Join(s.opts.DataDir, ResourcesDir)
+}
+
+func (s *Store) snapshotsDir() string {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return filepath.Join(s.opts.DataDir, SnapshotsDir)
+}
+
+func (s *Store) currentConfigDir() string {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return filepath.Join(s.opts.DataDir, CurrentConfigDir)
 }

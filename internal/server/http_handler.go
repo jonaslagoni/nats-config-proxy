@@ -27,36 +27,113 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nats-io/nats-rest-config-proxy/api"
-	"github.com/nats-io/nats.go"
+	"github.com/nats-io/nats-config-proxy/internal/models"
 )
 
-type Empty struct {
-}
-type ErrorMessage struct {
-	description string
-}
-
 // HandlePerm handles a request to create/update permissions.
-func (s *Server) HandleNats() {
+func (s *HttpServer) HandlePerm(w http.ResponseWriter, req *http.Request) {
+	var (
+		size   int
+		status int = http.StatusOK
+		err    error
+	)
+	defer func() {
+		s.processErr(err, status, w, req)
+		s.log.traceRequest(req, size, status, time.Now())
+	}()
 
-	nc, _ := nats.Connect(nats.DefaultURL)
-	c, _ := nats.NewEncodedConn(nc, nats.JSON_ENCODER)
-	defer c.Close()
+	err = s.verifyAuth(w, req)
+	if err != nil {
+		status = http.StatusUnauthorized
+		return
+	}
 
-	c.Subscribe("accounts.v1.auth.perms.get", func(m *Empty) {
-		perms, err := s.getPermissions()
+	name := strings.TrimPrefix(req.URL.Path, "/v1/auth/perms/")
+
+	// PUT
+	switch req.Method {
+	case "PUT":
+		s.log.Infof("Updating permission resource %q", name)
+		var payload []byte
+		payload, err = ioutil.ReadAll(req.Body)
 		if err != nil {
-			errorMessage := &ErrorMessage{description: "Some error occured"}
-			c.Publish("accounts.v1.auth.perms", errorMessage)
+			status = http.StatusInternalServerError
 			return
 		}
-		c.Publish("accounts.v1.auth.perms", perms)
-	})
+		size = len(payload)
+
+		// Validate that it is a permission
+		var p *models.Permissions
+		err = json.Unmarshal(payload, &p)
+		if err != nil {
+			status = http.StatusBadRequest
+			return
+		}
+		s.log.Tracef("Permission %q: %+v", name, p)
+
+		// Should get a type here instead
+		err = s.store.storePermissionResource(name, p)
+		if err != nil {
+			status = http.StatusInternalServerError
+			return
+		}
+		fmt.Fprintf(w, "Perm: %s\n", name)
+	case "GET":
+		s.log.Debugf("Retrieving permission resource %q", name)
+		var resource *models.Permissions
+		resource, err = s.store.getPermissionResource(name)
+		if err != nil {
+			status = http.StatusInternalServerError
+			return
+		}
+		var payload []byte
+		payload, err = json.Marshal(resource)
+		if err != nil {
+			status = http.StatusInternalServerError
+			return
+		}
+		fmt.Fprint(w, string(payload))
+	case "DELETE":
+		s.log.Debugf("Deleting permission resource %q", name)
+		if name == "" {
+			err = errors.New("Bad Request")
+			status = http.StatusBadRequest
+			return
+		}
+
+		// Confirm that no user is using this resource.
+		var users []*models.User
+		users, err = s.store.getUsers()
+		if err != nil {
+			status = http.StatusInternalServerError
+			return
+		}
+		for _, u := range users {
+			if u.Permissions == name {
+				err = fmt.Errorf("User %q is using permission %q", u.Username, name)
+				status = http.StatusConflict
+				return
+			}
+		}
+
+		err = s.store.deletePermissionResource(name)
+		if err != nil {
+			if os.IsNotExist(err) {
+				status = http.StatusNotFound
+			} else {
+				status = http.StatusInternalServerError
+			}
+			return
+		}
+		fmt.Fprintf(w, "Deleted permission resource %q", name)
+	default:
+		status = http.StatusMethodNotAllowed
+		err = fmt.Errorf("%s is not allowed on %q", req.Method, req.URL.Path)
+	}
 }
 
 // HandleIdent
-func (s *Server) HandleIdent(w http.ResponseWriter, req *http.Request) {
+func (s *HttpServer) HandleIdent(w http.ResponseWriter, req *http.Request) {
 	var (
 		size   int
 		status int = http.StatusOK
@@ -87,15 +164,15 @@ func (s *Server) HandleIdent(w http.ResponseWriter, req *http.Request) {
 		size = len(payload)
 
 		// Validate that it is a user
-		var u *api.User
+		var u *models.User
 		err = json.Unmarshal(payload, &u)
 		if err != nil {
 			status = http.StatusBadRequest
 			return
 		}
 
-		var existing []*api.User
-		existing, err = s.getUsers()
+		var existing []*models.User
+		existing, err = s.store.getUsers()
 		if err != nil {
 			status = http.StatusBadRequest
 			return
@@ -107,7 +184,7 @@ func (s *Server) HandleIdent(w http.ResponseWriter, req *http.Request) {
 
 		// Store permission
 		s.log.Tracef("User %q: %+v", name, u)
-		err = s.storeUserResource(name, u)
+		err = s.store.storeUserResource(name, u)
 		if err != nil {
 			status = http.StatusInternalServerError
 			return
@@ -122,8 +199,8 @@ func (s *Server) HandleIdent(w http.ResponseWriter, req *http.Request) {
 	case "GET":
 		s.log.Debugf("Retrieving user resource %q", name)
 
-		var resource *api.User
-		resource, err = s.getUserResource(name)
+		var resource *models.User
+		resource, err = s.store.getUserResource(name)
 		if err != nil {
 			if os.IsNotExist(err) {
 				status = http.StatusNotFound
@@ -134,7 +211,7 @@ func (s *Server) HandleIdent(w http.ResponseWriter, req *http.Request) {
 			return
 		}
 		var js []byte
-		js, err = resource.AsJSON()
+		js, err = json.Marshal(resource)
 		if err != nil {
 			status = http.StatusInternalServerError
 			return
@@ -148,7 +225,7 @@ func (s *Server) HandleIdent(w http.ResponseWriter, req *http.Request) {
 			return
 		}
 
-		err = s.deleteUserResource(name)
+		err = s.store.deleteUserResource(name)
 		if err != nil {
 			if os.IsNotExist(err) {
 				status = http.StatusNotFound
@@ -164,7 +241,7 @@ func (s *Server) HandleIdent(w http.ResponseWriter, req *http.Request) {
 	}
 }
 
-func verifyIdent(existing []*api.User, nu *api.User) error {
+func verifyIdent(existing []*models.User, nu *models.User) error {
 	for _, eu := range existing {
 		if eu.Username != nu.Username {
 			continue
@@ -183,7 +260,7 @@ func verifyIdent(existing []*api.User, nu *api.User) error {
 }
 
 // HandleSnapshot
-func (s *Server) HandleSnapshot(w http.ResponseWriter, req *http.Request) {
+func (s *HttpServer) HandleSnapshot(w http.ResponseWriter, req *http.Request) {
 	var (
 		size   int
 		status int = http.StatusOK
@@ -207,7 +284,7 @@ func (s *Server) HandleSnapshot(w http.ResponseWriter, req *http.Request) {
 	switch req.Method {
 	case "POST":
 		s.log.Infof("Creating config snapshot %q", name)
-		err = s.buildConfigSnapshot(name)
+		err = s.store.buildConfigSnapshot(name)
 		if err != nil {
 			status = http.StatusInternalServerError
 			return
@@ -215,7 +292,7 @@ func (s *Server) HandleSnapshot(w http.ResponseWriter, req *http.Request) {
 		fmt.Fprintf(w, "Config snapshot %q created\n", name)
 	case "GET":
 		var data []byte
-		data, err = s.getConfigSnapshot(name)
+		data, err = s.store.getConfigSnapshot(name)
 		if err != nil {
 			if os.IsNotExist(err) {
 				status = http.StatusNotFound
@@ -227,7 +304,7 @@ func (s *Server) HandleSnapshot(w http.ResponseWriter, req *http.Request) {
 		fmt.Fprintf(w, string(data))
 	case "DELETE":
 		s.log.Infof("Deleting config snapshot %q", name)
-		err = s.deleteConfigSnapshot(name)
+		err = s.store.deleteConfigSnapshot(name)
 		if err != nil {
 			if os.IsNotExist(err) {
 				status = http.StatusNotFound
@@ -243,8 +320,81 @@ func (s *Server) HandleSnapshot(w http.ResponseWriter, req *http.Request) {
 	}
 }
 
+// HandlePublish
+func (s *HttpServer) HandlePublish(w http.ResponseWriter, req *http.Request) {
+	var (
+		size   int
+		status int = http.StatusOK
+		err    error
+	)
+	defer func() {
+		s.processErr(err, status, w, req)
+		s.log.traceRequest(req, size, status, time.Now())
+	}()
+
+	err = s.verifyAuth(w, req)
+	if err != nil {
+		status = http.StatusUnauthorized
+		return
+	}
+
+	name := req.URL.Query().Get("name")
+	if name == "" {
+		s.log.Infof("Building latest config...")
+		name = DefaultSnapshotName
+		err = s.store.buildConfigSnapshot(name)
+		if err != nil {
+			status = http.StatusInternalServerError
+			return
+		}
+	} else {
+		s.log.Infof("Creating config from snapshot %q", name)
+	}
+	switch req.Method {
+	case "POST":
+		var data []byte
+		data, err = s.store.getConfigSnapshot(name)
+		if err != nil {
+			status = http.StatusInternalServerError
+			return
+		}
+		err = s.store.storeConfig(data)
+		if err != nil {
+			status = http.StatusInternalServerError
+			return
+		}
+
+		s.mu.Lock()
+		script := s.opts.PublishScript
+		s.mu.Unlock()
+
+		if script != "" {
+			// Change the cwd of the command to location of the script.
+			var stdout, stderr bytes.Buffer
+			cmd := exec.Command(script)
+			cmd.Dir = filepath.Dir(script)
+			cmd.Stdout = &stdout
+			cmd.Stderr = &stderr
+
+			s.log.Infof("Executing publish script %q", script)
+			err = cmd.Run()
+			s.log.Tracef("STDOUT: %s", stdout.String())
+			s.log.Tracef("STDERR: %s", stdout.String())
+			if err != nil {
+				status = http.StatusInternalServerError
+				return
+			}
+		}
+
+		fmt.Fprintf(w, "Configuration published\n")
+	default:
+		status = http.StatusMethodNotAllowed
+		err = fmt.Errorf("%s is not allowed on %q", req.Method, req.URL.Path)
+	}
+}
+
 // HandlePerms
-func (s *Server) HandlePerms(w http.ResponseWriter, req *http.Request) {
+func (s *HttpServer) HandlePerms(w http.ResponseWriter, req *http.Request) {
 	var (
 		size   int
 		status int = http.StatusOK
@@ -265,9 +415,9 @@ func (s *Server) HandlePerms(w http.ResponseWriter, req *http.Request) {
 	case "GET":
 		var (
 			data  []byte
-			perms map[string]*api.Permissions
+			perms map[string]*models.Permissions
 		)
-		perms, err = s.getPermissions()
+		perms, err = s.store.getPermissions()
 		if err != nil {
 			status = http.StatusInternalServerError
 			return
@@ -281,7 +431,7 @@ func (s *Server) HandlePerms(w http.ResponseWriter, req *http.Request) {
 		return
 	case "DELETE":
 		var conflict bool
-		conflict, err = s.deleteAllPermissions()
+		conflict, err = s.store.deleteAllPermissions()
 		if err != nil {
 			if conflict {
 				status = http.StatusConflict
@@ -299,7 +449,7 @@ func (s *Server) HandlePerms(w http.ResponseWriter, req *http.Request) {
 }
 
 // HandleIdents
-func (s *Server) HandleIdents(w http.ResponseWriter, req *http.Request) {
+func (s *HttpServer) HandleIdents(w http.ResponseWriter, req *http.Request) {
 	var (
 		size   int
 		status int = http.StatusOK
@@ -320,9 +470,9 @@ func (s *Server) HandleIdents(w http.ResponseWriter, req *http.Request) {
 	case "GET":
 		var (
 			data  []byte
-			users []*api.User
+			users []*models.User
 		)
-		users, err = s.getUsers()
+		users, err = s.store.getUsers()
 		if err != nil {
 			status = http.StatusInternalServerError
 			return
@@ -335,7 +485,7 @@ func (s *Server) HandleIdents(w http.ResponseWriter, req *http.Request) {
 		fmt.Fprintf(w, string(data))
 		return
 	case "DELETE":
-		err = s.deleteAllUsers()
+		err = s.store.deleteAllUsers()
 		if err != nil {
 			status = http.StatusInternalServerError
 			return
@@ -353,7 +503,7 @@ func hasWildcard(s string) bool {
 }
 
 // HandleAccounts
-func (s *Server) HandleAccounts(w http.ResponseWriter, req *http.Request) {
+func (s *HttpServer) HandleAccounts(w http.ResponseWriter, req *http.Request) {
 	var (
 		size   int
 		status int = http.StatusOK
@@ -384,9 +534,9 @@ func (s *Server) HandleAccounts(w http.ResponseWriter, req *http.Request) {
 
 		// If no payload, just create an empty object that
 		// will help create the account.
-		var a *api.Account
+		var a *models.Account
 		if size == 0 {
-			a = &api.Account{}
+			a = &models.Account{}
 		} else {
 			err = json.Unmarshal(payload, &a)
 			if err != nil {
@@ -411,7 +561,7 @@ func (s *Server) HandleAccounts(w http.ResponseWriter, req *http.Request) {
 		// Verify imports and exports and prevent bad requests.
 		hasExports := a.Exports != nil
 		hasImports := a.Imports != nil
-		hasJetStream := a.JetStream != nil
+		hasJetstream := a.Jetstream != nil
 		if hasExports {
 			// Check whether the exports have explicitly defined with
 			// which accounts the stream/service can be shared.
@@ -423,7 +573,7 @@ func (s *Server) HandleAccounts(w http.ResponseWriter, req *http.Request) {
 				}
 
 				for _, acc := range exp.Accounts {
-					if _, err = s.getAccountResource(acc); err != nil {
+					if _, err = s.store.getAccountResource(acc); err != nil {
 						if os.IsNotExist(err) {
 							err = fmt.Errorf("Account %q defined in export does not exist", acc)
 							status = http.StatusNotFound
@@ -463,7 +613,7 @@ func (s *Server) HandleAccounts(w http.ResponseWriter, req *http.Request) {
 					}
 
 					acc := imp.Service.Account
-					if _, err = s.getAccountResource(acc); err != nil {
+					if _, err = s.store.getAccountResource(acc); err != nil {
 						if os.IsNotExist(err) {
 							err = fmt.Errorf("Account %q defined in export does not exist", acc)
 							status = http.StatusNotFound
@@ -485,7 +635,7 @@ func (s *Server) HandleAccounts(w http.ResponseWriter, req *http.Request) {
 					}
 
 					acc := imp.Stream.Account
-					if _, err = s.getAccountResource(acc); err != nil {
+					if _, err = s.store.getAccountResource(acc); err != nil {
 						if os.IsNotExist(err) {
 							err = fmt.Errorf("Account %q defined in export does not exist", acc)
 							status = http.StatusNotFound
@@ -502,20 +652,20 @@ func (s *Server) HandleAccounts(w http.ResponseWriter, req *http.Request) {
 			}
 		}
 
-		if hasJetStream {
-			hasExplicitLimits := a.JetStream.MaxMemoryStore != nil ||
-				a.JetStream.MaxFileStore != nil ||
-				a.JetStream.MaxStreams != nil ||
-				a.JetStream.MaxConsumers != nil
+		if hasJetstream {
+			hasExplicitLimits := a.Jetstream.MaxMem != nil ||
+				a.Jetstream.MaxFile != nil ||
+				a.Jetstream.MaxStreams != nil ||
+				a.Jetstream.MaxConsumers != nil
 
-			if !a.JetStream.Enabled && hasExplicitLimits {
-				a.JetStream.Enabled = true
+			if !a.Jetstream.Enabled && hasExplicitLimits {
+				a.Jetstream.Enabled = true
 			}
 		}
 
 		// Store account information
 		s.log.Tracef("Account %q: %+v", name, a)
-		err = s.storeAccountResource(name, a)
+		err = s.store.storeAccountResource(name, a)
 		if err != nil {
 			status = http.StatusInternalServerError
 			return
@@ -526,8 +676,8 @@ func (s *Server) HandleAccounts(w http.ResponseWriter, req *http.Request) {
 		if name == "" {
 			// If name == "", then URL is a GET request on an entire
 			// collection.
-			var resources []*api.Account
-			resources, err = s.getAllAccountResources()
+			var resources []*models.Account
+			resources, err = s.store.getAllAccountResources()
 			if err != nil {
 				status = http.StatusInternalServerError
 				return
@@ -536,7 +686,7 @@ func (s *Server) HandleAccounts(w http.ResponseWriter, req *http.Request) {
 			var objs []string
 			var js []byte
 			for _, r := range resources {
-				js, err = r.AsJSON()
+				js, err = json.Marshal(r)
 				if err != nil {
 					status = http.StatusInternalServerError
 					return
@@ -547,8 +697,8 @@ func (s *Server) HandleAccounts(w http.ResponseWriter, req *http.Request) {
 			return
 		}
 
-		var resource *api.Account
-		resource, err = s.getAccountResource(name)
+		var resource *models.Account
+		resource, err = s.store.getAccountResource(name)
 		if err != nil {
 			if os.IsNotExist(err) {
 				err = fmt.Errorf("Account %q does not exist", name)
@@ -559,7 +709,7 @@ func (s *Server) HandleAccounts(w http.ResponseWriter, req *http.Request) {
 			return
 		}
 		var payload []byte
-		payload, err = resource.AsJSON()
+		payload, err = json.Marshal(resource)
 		if err != nil {
 			status = http.StatusInternalServerError
 			return
@@ -574,8 +724,8 @@ func (s *Server) HandleAccounts(w http.ResponseWriter, req *http.Request) {
 		}
 
 		// Confirm that no user is using this resource.
-		var users []*api.User
-		users, err = s.getUsers()
+		var users []*models.User
+		users, err = s.store.getUsers()
 		if err != nil {
 			status = http.StatusInternalServerError
 			return
@@ -588,7 +738,7 @@ func (s *Server) HandleAccounts(w http.ResponseWriter, req *http.Request) {
 			}
 		}
 
-		err = s.deleteAccountResource(name)
+		err = s.store.deleteAccountResource(name)
 		if err != nil {
 			if os.IsNotExist(err) {
 				status = http.StatusNotFound
@@ -605,7 +755,7 @@ func (s *Server) HandleAccounts(w http.ResponseWriter, req *http.Request) {
 }
 
 // HandleSnapshotV2
-func (s *Server) HandleSnapshotV2(w http.ResponseWriter, req *http.Request) {
+func (s *HttpServer) HandleSnapshotV2(w http.ResponseWriter, req *http.Request) {
 	var (
 		size   int
 		status int = http.StatusOK
@@ -630,7 +780,7 @@ func (s *Server) HandleSnapshotV2(w http.ResponseWriter, req *http.Request) {
 	switch req.Method {
 	case "POST":
 		s.log.Infof("Building latest config...")
-		err = s.buildConfigSnapshotV2(name)
+		err = s.store.buildConfigSnapshotV2(name)
 		if err != nil {
 			status = http.StatusInternalServerError
 			return
@@ -643,7 +793,7 @@ func (s *Server) HandleSnapshotV2(w http.ResponseWriter, req *http.Request) {
 		err = fmt.Errorf("%s is not allowed on %q", req.Method, req.URL.Path)
 	case "DELETE":
 		s.log.Infof("Deleting config snapshot %q", name)
-		err = s.deleteConfigSnapshotV2(name)
+		err = s.store.deleteConfigSnapshotV2(name)
 		if err != nil {
 			if os.IsNotExist(err) {
 				status = http.StatusNotFound
@@ -660,7 +810,7 @@ func (s *Server) HandleSnapshotV2(w http.ResponseWriter, req *http.Request) {
 }
 
 // HandleValidateSnapshotV2
-func (s *Server) HandleValidateSnapshotV2(w http.ResponseWriter, req *http.Request) {
+func (s *HttpServer) HandleValidateSnapshotV2(w http.ResponseWriter, req *http.Request) {
 	var (
 		size   int
 		status int = http.StatusOK
@@ -692,23 +842,23 @@ func (s *Server) HandleValidateSnapshotV2(w http.ResponseWriter, req *http.Reque
 	fmt.Fprintf(w, "OK\n")
 }
 
-func (s *Server) VerifySnapshot() error {
+func (s *HttpServer) VerifySnapshot() error {
 	name := randomString(32)
 
-	if err := s.buildConfigSnapshotV2(name); err != nil {
-		defer s.deleteConfigSnapshotV2(name)
+	if err := s.store.buildConfigSnapshotV2(name); err != nil {
+		defer s.store.deleteConfigSnapshotV2(name)
 		return err
 	}
 
-	return s.deleteConfigSnapshotV2(name)
+	return s.store.deleteConfigSnapshotV2(name)
 }
 
-func (s *Server) TakeSnapshot(name string) error {
-	return s.buildConfigSnapshotV2(name)
+func (s *HttpServer) TakeSnapshot(name string) error {
+	return s.store.buildConfigSnapshotV2(name)
 }
 
-func (s *Server) PublishSnapshot(name string) error {
-	return s.publishConfigSnapshotV2(name)
+func (s *HttpServer) PublishSnapshot(name string) error {
+	return s.store.publishConfigSnapshotV2(name)
 }
 
 func randomString(n int) string {
@@ -728,7 +878,7 @@ func randIntRange(min, max int) int {
 }
 
 // HandlePublishV2
-func (s *Server) HandlePublishV2(w http.ResponseWriter, req *http.Request) {
+func (s *HttpServer) HandlePublishV2(w http.ResponseWriter, req *http.Request) {
 	var (
 		size   int
 		status int = http.StatusOK
@@ -751,7 +901,7 @@ func (s *Server) HandlePublishV2(w http.ResponseWriter, req *http.Request) {
 		if name == "" {
 			s.log.Infof("Building latest config...")
 			name = DefaultSnapshotName
-			err = s.buildConfigSnapshotV2(name)
+			err = s.store.buildConfigSnapshotV2(name)
 			if err != nil {
 				status = http.StatusInternalServerError
 				return
@@ -760,7 +910,7 @@ func (s *Server) HandlePublishV2(w http.ResponseWriter, req *http.Request) {
 			s.log.Infof("Creating config from snapshot %q", name)
 		}
 
-		err = s.publishConfigSnapshotV2(name)
+		err = s.store.publishConfigSnapshotV2(name)
 		if err != nil {
 			status = http.StatusInternalServerError
 			return
@@ -796,7 +946,7 @@ func (s *Server) HandlePublishV2(w http.ResponseWriter, req *http.Request) {
 }
 
 // HandleHealthz handles healthz.
-func (s *Server) HandleHealthz(w http.ResponseWriter, req *http.Request) {
+func (s *HttpServer) HandleHealthz(w http.ResponseWriter, req *http.Request) {
 	var (
 		size   int
 		status int = http.StatusOK
@@ -814,8 +964,8 @@ func (s *Server) HandleHealthz(w http.ResponseWriter, req *http.Request) {
 	fmt.Fprintf(w, "OK\n")
 }
 
-// HandleGlobalJetStream
-func (s *Server) HandleGlobalJetStream(w http.ResponseWriter, req *http.Request) {
+// HandleGlobalJetstream
+func (s *HttpServer) HandleGlobalJetstream(w http.ResponseWriter, req *http.Request) {
 	var (
 		size   int
 		status int = http.StatusOK
@@ -834,7 +984,7 @@ func (s *Server) HandleGlobalJetStream(w http.ResponseWriter, req *http.Request)
 
 	switch req.Method {
 	case "PUT":
-		s.log.Infof("Updating global JetStream config")
+		s.log.Infof("Updating global Jetstream config")
 		var payload []byte
 		payload, err = ioutil.ReadAll(req.Body)
 		if err != nil {
@@ -844,23 +994,23 @@ func (s *Server) HandleGlobalJetStream(w http.ResponseWriter, req *http.Request)
 		size = len(payload)
 
 		// Validate that it is a permission
-		var c *api.GlobalJetStream
+		var c *models.JetstreamGlobalConfig
 		err = json.Unmarshal(payload, &c)
 		if err != nil {
 			status = http.StatusBadRequest
 			return
 		}
-		s.log.Tracef("Global JetStream config: %+v", c)
+		s.log.Tracef("Global Jetstream config: %+v", c)
 
-		err = s.storeGlobalJetStream(c)
+		err = s.store.storeGlobalJetstream(c)
 		if err != nil {
 			status = http.StatusInternalServerError
 			return
 		}
 		fmt.Fprintf(w, "OK\n")
 	case "DELETE":
-		s.log.Infof("Deleting global JetStream config")
-		err = s.deleteGlobalJetStream()
+		s.log.Infof("Deleting global Jetstream config")
+		err = s.store.deleteGlobalJetstream()
 		if err != nil {
 			if os.IsNotExist(err) {
 				status = http.StatusNotFound
@@ -876,7 +1026,7 @@ func (s *Server) HandleGlobalJetStream(w http.ResponseWriter, req *http.Request)
 	}
 }
 
-func (s *Server) verifyAuth(w http.ResponseWriter, req *http.Request) error {
+func (s *HttpServer) verifyAuth(w http.ResponseWriter, req *http.Request) error {
 	if req.TLS != nil && len(req.TLS.PeerCertificates) > 0 {
 		cert := req.TLS.PeerCertificates[0]
 		subject := cert.Subject.String()
@@ -892,7 +1042,7 @@ func (s *Server) verifyAuth(w http.ResponseWriter, req *http.Request) error {
 	return nil
 }
 
-func (s *Server) processErr(err error, status int, w http.ResponseWriter, req *http.Request) {
+func (s *HttpServer) processErr(err error, status int, w http.ResponseWriter, req *http.Request) {
 	if err != nil {
 		errMsg := fmt.Sprintf("Error: %s", err)
 		s.log.Errorf(errMsg)

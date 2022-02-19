@@ -18,7 +18,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/nats-io/nats-rest-config-proxy/api"
+	"github.com/nats-io/nats-config-proxy/internal/models"
 )
 
 func TestStoreGetPermission(t *testing.T) {
@@ -27,13 +27,13 @@ func TestStoreGetPermission(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	s := &Server{opts: &Options{DataDir: dir}}
+	s := &Store{opts: &Options{DataDir: dir}}
 	err = s.setupStoreDirectories()
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	expected := &api.Permissions{}
+	expected := &models.Permissions{}
 	err = s.storePermissionResource("foo", expected)
 	if err != nil {
 		t.Fatal(err)
@@ -54,13 +54,13 @@ func TestStoreGetUser(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	s := &Server{opts: &Options{DataDir: dir}}
+	s := &Store{opts: &Options{DataDir: dir}}
 	err = s.setupStoreDirectories()
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	expected := &api.User{}
+	expected := &models.User{}
 	err = s.storeUserResource("foo", expected)
 	if err != nil {
 		t.Fatal(err)
@@ -76,35 +76,35 @@ func TestStoreGetUser(t *testing.T) {
 }
 
 func TestMergeDuplicateUsers(t *testing.T) {
-	permA := &api.Permissions{
-		Publish: &api.PermissionRules{
+	permA := &models.Permissions{
+		Publish: &models.PermissionRules{
 			Allow: []string{"a"},
 		},
 	}
-	permB := &api.Permissions{
-		Publish: &api.PermissionRules{
+	permB := &models.Permissions{
+		Publish: &models.PermissionRules{
 			Allow: []string{"b"},
 		},
 	}
-	permAB := &api.Permissions{
-		Publish: &api.PermissionRules{
+	permAB := &models.Permissions{
+		Publish: &models.PermissionRules{
 			Allow: []string{"a", "b"},
 		},
 	}
 
-	permC := &api.Permissions{
-		Publish: &api.PermissionRules{
+	permC := &models.Permissions{
+		Publish: &models.PermissionRules{
 			Allow: []string{"a"},
 			Deny:  []string{"aa"},
 		},
 	}
-	permD := &api.Permissions{
-		Publish: &api.PermissionRules{
+	permD := &models.Permissions{
+		Publish: &models.PermissionRules{
 			Allow: []string{"b"},
 		},
 	}
-	permCD := &api.Permissions{
-		Publish: &api.PermissionRules{
+	permCD := &models.Permissions{
+		Publish: &models.PermissionRules{
 			Allow: []string{"a", "b"},
 			Deny:  []string{"aa"},
 		},
@@ -112,58 +112,58 @@ func TestMergeDuplicateUsers(t *testing.T) {
 
 	cases := []struct {
 		name  string
-		users []*api.ConfigUser
-		want  []*api.ConfigUser
+		users []*models.UserConfig
+		want  []*models.UserConfig
 	}{
 		{
 			name: "different usernames no-op",
-			users: []*api.ConfigUser{
+			users: []*models.UserConfig{
 				{Username: "foo", Permissions: permA},
 				{Username: "bar", Permissions: permA},
 			},
-			want: []*api.ConfigUser{
+			want: []*models.UserConfig{
 				{Username: "foo", Permissions: permA},
 				{Username: "bar", Permissions: permA},
 			},
 		},
 		{
 			name: "different creds no-op",
-			users: []*api.ConfigUser{
+			users: []*models.UserConfig{
 				{Username: "foo", Password: "fizz", Permissions: permA},
 				{Username: "foo", Password: "buzz", Permissions: permA},
 			},
-			want: []*api.ConfigUser{
+			want: []*models.UserConfig{
 				{Username: "foo", Password: "fizz", Permissions: permA},
 				{Username: "foo", Password: "buzz", Permissions: permA},
 			},
 		},
 		{
 			name: "merge perm a",
-			users: []*api.ConfigUser{
+			users: []*models.UserConfig{
 				{Username: "foo", Permissions: permA},
 				{Username: "foo", Permissions: permA},
 			},
-			want: []*api.ConfigUser{
+			want: []*models.UserConfig{
 				{Username: "foo", Permissions: permA},
 			},
 		},
 		{
 			name: "merge perm a and b",
-			users: []*api.ConfigUser{
+			users: []*models.UserConfig{
 				{Username: "foo", Permissions: permA},
 				{Username: "foo", Permissions: permB},
 			},
-			want: []*api.ConfigUser{
+			want: []*models.UserConfig{
 				{Username: "foo", Permissions: permAB},
 			},
 		},
 		{
 			name: "merge perm c and d",
-			users: []*api.ConfigUser{
+			users: []*models.UserConfig{
 				{Username: "foo", Permissions: permC},
 				{Username: "foo", Permissions: permD},
 			},
-			want: []*api.ConfigUser{
+			want: []*models.UserConfig{
 				{Username: "foo", Permissions: permCD},
 			},
 		},
@@ -190,47 +190,47 @@ func TestMergeDuplicateUsers(t *testing.T) {
 }
 
 func TestMergeDuplicateUsersMixedPermissions(t *testing.T) {
-	permA := &api.Permissions{
-		Publish: &api.PermissionRules{
+	permA := &models.Permissions{
+		Publish: &models.PermissionRules{
 			Allow: []string{"a"},
 		},
 	}
-	permB := &api.Permissions{
-		Subscribe: &api.PermissionRules{
+	permB := &models.Permissions{
+		Subscribe: &models.PermissionRules{
 			Allow: []string{"b"},
 		},
 	}
-	permAB := &api.Permissions{
-		Publish: &api.PermissionRules{
+	permAB := &models.Permissions{
+		Publish: &models.PermissionRules{
 			Allow: []string{"a"},
 		},
-		Subscribe: &api.PermissionRules{
+		Subscribe: &models.PermissionRules{
 			Allow: []string{"b"},
 		},
 	}
 
 	cases := []struct {
 		name  string
-		users []*api.ConfigUser
-		want  []*api.ConfigUser
+		users []*models.UserConfig
+		want  []*models.UserConfig
 	}{
 		{
 			name: "merge perm a and b",
-			users: []*api.ConfigUser{
+			users: []*models.UserConfig{
 				{Username: "foo", Permissions: permA},
 				{Username: "foo", Permissions: permB},
 			},
-			want: []*api.ConfigUser{
+			want: []*models.UserConfig{
 				{Username: "foo", Permissions: permAB},
 			},
 		},
 		{
 			name: "merge perm b and a",
-			users: []*api.ConfigUser{
+			users: []*models.UserConfig{
 				{Username: "foo", Permissions: permB},
 				{Username: "foo", Permissions: permA},
 			},
-			want: []*api.ConfigUser{
+			want: []*models.UserConfig{
 				{Username: "foo", Permissions: permAB},
 			},
 		},
@@ -256,7 +256,7 @@ func TestMergeDuplicateUsersMixedPermissions(t *testing.T) {
 	}
 }
 
-func configUsersEqual(a, b []*api.ConfigUser) bool {
+func configUsersEqual(a, b []*models.UserConfig) bool {
 	if len(a) != len(b) {
 		return false
 	}

@@ -36,8 +36,8 @@ type logger struct {
 	rotate     func() error
 }
 
-// NewLogger returns a logger.
-func NewLogger(opts *Options) *logger {
+// Newlogger returns a logger.
+func Newlogger(opts *Options) *logger {
 	prefix := fmt.Sprintf("[%d] ", os.Getpid())
 	flags := log.LstdFlags | log.Lmicroseconds
 	l := &logger{logger: log.New(os.Stderr, prefix, flags)}

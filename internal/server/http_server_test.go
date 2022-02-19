@@ -22,7 +22,6 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
-	"reflect"
 	"strings"
 	"syscall"
 	"testing"
@@ -31,7 +30,7 @@ import (
 
 var testPort int = 4567
 
-func newTestServer() (*Server, error) {
+func newTestServer() (*HttpServer, error) {
 	dir, err := ioutil.TempDir("", "acl-proxy-data-dir-")
 	if err != nil {
 		return nil, err
@@ -49,20 +48,20 @@ func newTestServer() (*Server, error) {
 		opts.NoLog = false
 	}
 	testPort += 1
-	s := &Server{opts: opts}
+	s := NewHttpServer(opts)
 
 	// Setup test server for handler without binding port
-	l := NewLogger(s.opts)
+	l := Newlogger(s.opts)
 	l.logger.SetOutput(ioutil.Discard)
 	s.log = l
-	err = s.setupStoreDirectories()
+	err = s.store.setupStoreDirectories()
 	if err != nil {
 		return nil, err
 	}
 	return s, nil
 }
 
-func waitServerIsReady(t *testing.T, ctx context.Context, s *Server) {
+func waitServerIsReady(t *testing.T, ctx context.Context, s *HttpServer) {
 	host := s.opts.Host
 	port := s.opts.Port
 	for range time.NewTicker(50 * time.Millisecond).C {
@@ -85,7 +84,7 @@ func waitServerIsReady(t *testing.T, ctx context.Context, s *Server) {
 	}
 }
 
-func waitServerIsDone(t *testing.T, ctx context.Context, s *Server) {
+func waitServerIsDone(t *testing.T, ctx context.Context, s *HttpServer) {
 	host := s.opts.Host
 	port := s.opts.Port
 	for range time.NewTicker(50 * time.Millisecond).C {
@@ -141,29 +140,21 @@ func TestServerSetup(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer os.RemoveAll(s.opts.DataDir)
-	err = s.setupStoreDirectories()
+	err = s.store.setupStoreDirectories()
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = os.Stat(s.resourcesDir())
+	_, err = os.Stat(s.store.resourcesDir())
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = os.Stat(s.snapshotsDir())
+	_, err = os.Stat(s.store.snapshotsDir())
 	if err != nil {
 		t.Error(err)
 	}
-	_, err = os.Stat(s.currentConfigDir())
+	_, err = os.Stat(s.store.currentConfigDir())
 	if err != nil {
 		t.Error(err)
-	}
-}
-
-func TestNewServer(t *testing.T) {
-	expected := &Server{opts: &Options{}}
-	got := NewServer(nil)
-	if !reflect.DeepEqual(got, expected) {
-		t.Errorf("Expected %+v, got: %+v", expected, got)
 	}
 }
 
@@ -220,7 +211,7 @@ func TestServerHupSignalHandler(t *testing.T) {
 	}
 }
 
-func TestRunServerFileLogger(t *testing.T) {
+func TestRunServerFilelogger(t *testing.T) {
 	s, err := newTestServer()
 	if err != nil {
 		t.Fatal(err)
@@ -245,7 +236,7 @@ func TestRunServerFileLogger(t *testing.T) {
 		t.Error(err)
 	}
 	got := string(contents)
-	if !strings.Contains(got, `Starting nats-rest-config-proxy`) {
+	if !strings.Contains(got, `Starting nats-config-proxy`) {
 		t.Errorf("Unexpected output in log file: %v", got)
 	}
 }

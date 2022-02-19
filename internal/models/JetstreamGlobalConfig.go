@@ -1,8 +1,8 @@
 package models
 
 // JetstreamConfig represents a JetstreamConfig model.
-type JetstreamConfig struct {
-	Enabled      bool   `json:"enabled"`
+type JetstreamGlobalConfig struct {
+	StoreDir     string `json:"store_dir,omitempty"`
 	MaxMem       *int64 `json:"max mem,omitempty"`
 	MaxFile      *int64 `json:"max_file,omitempty"`
 	MaxStreams   *int64 `json:"max_streams,omitempty"`

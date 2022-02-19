@@ -40,7 +40,7 @@ const generator = new GoFileGenerator({
   if err != nil {
     return err
   }
-  UnmarshalJetStreamAccount(buf.Bytes(), &t)
+  UnmarshalJetstreamAccount(buf.Bytes(), &t)
   c.AdditionalProperties[key] = &t
 }`
           }

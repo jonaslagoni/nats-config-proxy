@@ -433,7 +433,7 @@ func TestTLSConfig(t *testing.T) {
 		KeyFile:  "./../../test/certs/ca-config.json",
 	}
 	expectedErr := `error parsing X509 certificate/key pair (./../../test/certs/ca-config.json, ./../../test/certs/ca-config.json): tls: failed to find any PEM data in certificate input`
-	s := NewServer(opts)
+	s := NewHttpServer(opts)
 	_, err := s.generateTLSConfig()
 	if err == nil {
 		t.Errorf("Expected error when generating config")
@@ -445,7 +445,7 @@ func TestTLSConfig(t *testing.T) {
 		CertFile: "./../../test/certs/server.pem",
 		KeyFile:  "./../../test/certs/server-key.pem",
 	}
-	s = NewServer(opts)
+	s = NewHttpServer(opts)
 	config, err := s.generateTLSConfig()
 	if err != nil {
 		t.Fatalf("Unexpected error when generating config: %s", err)
@@ -458,7 +458,7 @@ func TestTLSConfig(t *testing.T) {
 		CertFile: "./../../test/certs/server.pom",
 		KeyFile:  "./../../test/certs/server-key.pem",
 	}
-	s = NewServer(opts)
+	s = NewHttpServer(opts)
 	_, err = s.generateTLSConfig()
 	if err == nil {
 		t.Fatalf("Expected error when generating config: %s", err)
@@ -469,7 +469,7 @@ func TestTLSConfig(t *testing.T) {
 		KeyFile:  "./../../test/certs/server-key.pem",
 		CaFile:   "./../../test/certs/ca.pem",
 	}
-	s = NewServer(opts)
+	s = NewHttpServer(opts)
 	config, err = s.generateTLSConfig()
 	if err != nil {
 		t.Fatalf("Unexpected error when generating config: %s", err)
@@ -483,7 +483,7 @@ func TestTLSConfig(t *testing.T) {
 		KeyFile:  "./../../test/certs/server-key.pem",
 		CaFile:   "./../../test/certs/ca.pom",
 	}
-	s = NewServer(opts)
+	s = NewHttpServer(opts)
 	config, err = s.generateTLSConfig()
 	if err == nil {
 		t.Fatalf("Expected error when generating config: %s", err)

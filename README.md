@@ -6,13 +6,18 @@ passwords.  This proxy is designed to facilitate the development of command
 line tools and/or user interfaces to remotely update a NATS server
 configuration.
 
+
 ## Getting started
+
+Check out the NATS API here: https://studio.asyncapi.com/?url=https://raw.githubusercontent.com/jonaslagoni/nats-config-proxy/master/asyncapi.json
+
+
+
+## Usage
 
 ```sh
 go get -u github.com/nats-io/nats-config-proxy
 ```
-
-## Usage
 
 ```sh
 Usage: nats-config-proxy [options...]
@@ -26,6 +31,12 @@ Common Options:
 
 NATS API Options:
     --enable_nats                 Enables the NATS API
+    --nats_servers <servers>      NATS Servers to connect to
+    --nats_cert <file>            NATS Server certificate file
+    --nats_key <file>             NATS Server Private key for server certificate
+    --nats_cacert <file>          NATS Server Client certificate CA for verification
+    --nats_password               NATS Client password to use with `nats_username` to connect to the broker
+    --nats_username               NATS Client username to use with `nats_password` to connect to the broker
     
 
 HTTP Rest API Server Options:
@@ -101,7 +112,7 @@ up nightly.  There are many options.
 ```sh
 # Build locally using Go modules
 $ GO111MODULE=on go run main.go
-[41405] 2019/02/11 16:18:52.713366 [INF] Starting nats-rest-config-proxy v0.0.1
+[41405] 2019/02/11 16:18:52.713366 [INF] Starting nats-config-proxy v0.0.1
 [41405] 2019/02/11 16:18:52.713804 [INF] Listening on 0.0.0.0:4567
 
 # To run the tests

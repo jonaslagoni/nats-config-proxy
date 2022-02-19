@@ -12,7 +12,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nats-io/nats-rest-config-proxy/internal/server"
+	"github.com/nats-io/nats-config-proxy/internal/server"
 	gnatsd "github.com/nats-io/nats-server/v2/test"
 	nats "github.com/nats-io/nats.go"
 )
@@ -107,7 +107,7 @@ func DefaultOptions() *server.Options {
 func TestBasicRunServer(t *testing.T) {
 	opts := DefaultOptions()
 	opts.Port = 0
-	s := server.NewServer(opts)
+	s := server.NewHttpServer(opts)
 	ctx, done := context.WithCancel(context.Background())
 
 	time.AfterFunc(100*time.Millisecond, func() {
@@ -123,7 +123,7 @@ func TestBasicRunServer(t *testing.T) {
 func TestFullCycle(t *testing.T) {
 	// Create a data directory.
 	opts := DefaultOptions()
-	s := server.NewServer(opts)
+	s := server.NewHttpServer(opts)
 	host := fmt.Sprintf("http://%s:%d", opts.Host, opts.Port)
 	ctx, _ := context.WithTimeout(context.Background(), 5*time.Second)
 	time.AfterFunc(2*time.Second, func() {
@@ -269,7 +269,7 @@ func TestFullCycleWithAccounts(t *testing.T) {
 	// Create a data directory.
 	opts := DefaultOptions()
 	opts.DataDir = "./data-accounts"
-	s := server.NewServer(opts)
+	s := server.NewHttpServer(opts)
 	host := fmt.Sprintf("http://%s:%d", opts.Host, opts.Port)
 	ctx, _ := context.WithTimeout(context.Background(), 5*time.Second)
 	time.AfterFunc(2*time.Second, func() {
@@ -614,7 +614,7 @@ func TestFullCycleWithAccountsImportsExports(t *testing.T) {
 	// Create a data directory.
 	opts := DefaultOptions()
 	opts.DataDir = "./data-accounts-imports"
-	s := server.NewServer(opts)
+	s := server.NewHttpServer(opts)
 	host := fmt.Sprintf("http://%s:%d", opts.Host, opts.Port)
 	ctx, _ := context.WithTimeout(context.Background(), 5*time.Second)
 	time.AfterFunc(2*time.Second, func() {
@@ -799,7 +799,7 @@ func TestFullCycleWithAccountsJetStream(t *testing.T) {
 	// Create a data directory.
 	opts := DefaultOptions()
 	opts.DataDir = "./data-accounts-imports"
-	s := server.NewServer(opts)
+	s := server.NewHttpServer(opts)
 	host := fmt.Sprintf("http://%s:%d", opts.Host, opts.Port)
 	ctx, _ := context.WithTimeout(context.Background(), 5*time.Second)
 	time.AfterFunc(2*time.Second, func() {
@@ -1030,7 +1030,7 @@ func TestFullCycleWithAccountsImportsExportsResponsePermissions(t *testing.T) {
 	// Create a data directory.
 	opts := DefaultOptions()
 	opts.DataDir = "./data-accounts-response-permissions"
-	s := server.NewServer(opts)
+	s := server.NewHttpServer(opts)
 	host := fmt.Sprintf("http://%s:%d", opts.Host, opts.Port)
 	ctx, _ := context.WithTimeout(context.Background(), 5*time.Second)
 	time.AfterFunc(2*time.Second, func() {
