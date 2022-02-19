@@ -1,0 +1,6 @@
+{
+  "description": "name of the account to look up",
+  "schema": {
+    "type": "string"
+  }
+}

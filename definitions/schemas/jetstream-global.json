@@ -1,0 +1,16 @@
+{
+  "allOf": [
+    {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "store_dir": {
+          "type": "string"
+        }
+      }
+    },
+    {
+      "$ref": "./jetstream-config.json"
+    }
+  ]
+}

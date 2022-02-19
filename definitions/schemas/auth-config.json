@@ -1,0 +1,19 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "users": {
+      "type": "array",
+      "items": [
+        {
+          "$ref": "./user-config.json"
+        }
+      ]
+    },
+    "accounts": {
+      "additionalProperties": {
+        "$ref": "./account.json"
+      }
+    }
+  }
+}

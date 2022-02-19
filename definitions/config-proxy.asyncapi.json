@@ -1,0 +1,42 @@
+{
+  "asyncapi": "2.3.0",
+  "info": {
+    "title": "NATS configuration proxy",
+    "version": "0.0.1",
+    "description": "This application dynamically changes the configuration of a running NATS server",
+    "license": {
+      "name": "Apache 2.0",
+      "url": "https://www.apache.org/licenses/LICENSE-2.0"
+    }
+  },
+  "channels": {
+    "accounts.v1.auth.idents": {
+      "description": "Get list of identities",
+      "subscribe": {
+        "tags": [
+          {
+            "name": "identities",
+            "description": "Identity related"
+          }
+        ],
+        "message": {
+          "$ref": "#/components/messages/Identity"
+        }
+      }
+    },
+    "accounts.v1.auth.idents.updated": {
+      "description": "identities have been updated",
+      "publish": {
+        "tags": [
+          {
+            "name": "identities",
+            "description": "Identity related"
+          }
+        ],
+        "message": {
+          "$ref": "#/components/messages/Identity"
+        }
+      }
+    }
+  }
+}

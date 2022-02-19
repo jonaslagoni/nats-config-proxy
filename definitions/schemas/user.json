@@ -1,0 +1,13 @@
+{
+  "oneOf": [
+    {
+      "$ref": "./user-pass.json"
+    },
+    {
+      "$ref": "./nkey-user.json"
+    },
+    {
+      "$ref": "./cert-user.json"
+    }
+  ]
+}

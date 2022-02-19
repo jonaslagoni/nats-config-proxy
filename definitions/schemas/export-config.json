@@ -1,0 +1,23 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "stream": {
+      "type": "string"
+    },
+    "service": {
+      "type": "string"
+    },
+    "Accounts": {
+      "type": "array",
+      "items": [
+        {
+          "type": "string"
+        }
+      ]
+    },
+    "response": {
+      "type": "string"
+    }
+  }
+}

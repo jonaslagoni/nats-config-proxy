@@ -1,0 +1,5 @@
+{
+  "payload": {
+    "$ref": "../schemas/permissions.json"
+  }
+}

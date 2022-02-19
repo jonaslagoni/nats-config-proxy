@@ -1,0 +1,33 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "users": {
+      "type": "array",
+      "items": [
+        {
+          "$ref": "./user-config.json"
+        }
+      ]
+    },
+    "exports": {
+      "type": "array",
+      "items": [
+        {
+          "$ref": "./export-config.json"
+        }
+      ]
+    },
+    "imports": {
+      "type": "array",
+      "items": [
+        {
+          "$ref": "./import-config.json"
+        }
+      ]
+    },
+    "jetstream": {
+      "$ref": "./jetstream-config.json"
+    }
+  }
+}

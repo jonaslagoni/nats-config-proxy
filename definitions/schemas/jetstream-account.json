@@ -1,0 +1,18 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "max_mem": {
+      "type": "integer"
+    },
+    "max_file": {
+      "type": "integer"
+    },
+    "max_streams": {
+      "type": "integer"
+    },
+    "max_consumers": {
+      "type": "integer"
+    }
+  }
+}

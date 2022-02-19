@@ -1,0 +1,18 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "service": {
+      "$ref": "./generic-import.json"
+    },
+    "stream": {
+      "$ref": "./generic-import.json"
+    },
+    "prefix": {
+      "type": "string"
+    },
+    "to": {
+      "type": "string"
+    }
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "publish": {
+      "$ref": "./permission-rules.json"
+    },
+    "subscribe": {
+      "$ref": "./permission-rules.json"
+    },
+    "responses": {
+      "$ref": "./permission-rules.json"
+    }
+  }
+}
