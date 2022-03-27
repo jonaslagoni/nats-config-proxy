@@ -9,8 +9,8 @@
     "subscribe": {
       "$ref": "./permission-rules.json"
     },
-    "responses": {
-      "$ref": "./permission-rules.json"
+    "allow_responses": {
+      "$ref": "./response-rules.json"
     }
   }
 }

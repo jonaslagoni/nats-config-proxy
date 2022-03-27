@@ -87,7 +87,7 @@ func (s *HttpServer) HandlePerm(w http.ResponseWriter, req *http.Request) {
 			return
 		}
 		var payload []byte
-		payload, err = json.Marshal(resource)
+		payload, err = marshalIndent(resource)
 		if err != nil {
 			status = http.StatusInternalServerError
 			return

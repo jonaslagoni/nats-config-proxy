@@ -20,7 +20,7 @@
           }
         ],
         "message": {
-          "$ref": "#/components/messages/Identity"
+          "$ref": "./messages/user.json"
         }
       }
     },
@@ -34,7 +34,7 @@
           }
         ],
         "message": {
-          "$ref": "#/components/messages/Identity"
+          "$ref": "./messages/user.json"
         }
       }
     }

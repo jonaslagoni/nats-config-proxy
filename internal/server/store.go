@@ -15,6 +15,7 @@ package server
 
 import (
 	"bufio"
+	"bytes"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -756,9 +757,23 @@ func (s *Store) setupStoreDirectories() error {
 	}
 	return nil
 }
+
 func (s *Store) marshalIndent(m interface{}) ([]byte, error) {
-	return json.MarshalIndent(m, "", "  ")
+	buf := &bytes.Buffer{}
+	encoder := json.NewEncoder(buf)
+	encoder.SetEscapeHTML(false)
+	err := encoder.Encode(m)
+	if err != nil {
+		return nil, err
+	}
+	buf2 := &bytes.Buffer{}
+	err = json.Indent(buf2, buf.Bytes(), "", "  ")
+	if err != nil {
+		return nil, err
+	}
+	return buf2.Bytes(), nil
 }
+
 func (s *Store) storeGlobalJetstream(c *models.JetstreamGlobalConfig) error {
 	data, err := s.marshalIndent(c)
 	if err != nil {

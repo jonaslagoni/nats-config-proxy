@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"reflect"
 	"testing"
 	"time"
 
@@ -989,7 +990,7 @@ func TestFullCycleWithAccountsJetStream(t *testing.T) {
     "max_consumers": -1
   }
 }`
-	if got != expected {
+	if !reflect.DeepEqual(got, expected) {
 		t.Fatalf("Expected %+v, got: %+v", expected, got)
 	}
 

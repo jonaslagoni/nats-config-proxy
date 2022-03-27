@@ -2007,7 +2007,8 @@ echo 'Publishing script...' > ./artifact2.log
       }
     }
   ]
-}`
+}
+`
 	got = string(result)
 	if got != expected {
 		t.Errorf("Expected: %q\nGot: %q", expected, got)
@@ -2307,7 +2308,8 @@ func TestAccountsJetStreamHandler(t *testing.T) {
     }
   ],
   "jetstream": {}
-}`
+}
+`
 		got = string(contents)
 		if got != expected {
 			t.Errorf("Expected: %q\nGot: %q", expected, got)
@@ -2330,7 +2332,8 @@ func TestAccountsJetStreamHandler(t *testing.T) {
     "max_streams": 300,
     "max_consumers": 200
   }
-}`
+}
+`
 		got = string(contents)
 		if got != expected {
 			t.Errorf("Expected: %q\nGot: %q", expected, got)
@@ -2353,7 +2356,8 @@ func TestAccountsJetStreamHandler(t *testing.T) {
     "max_streams": 300,
     "max_consumers": 200
   }
-}`
+}
+`
 		got = string(contents)
 		if got != expected {
 			t.Errorf("Expected: %q\nGot: %q", expected, got)
@@ -2374,7 +2378,8 @@ func TestAccountsJetStreamHandler(t *testing.T) {
     "max_streams": 0,
     "max_consumers": -1
   }
-}`
+}
+`
 		got = string(contents)
 		if got != expected {
 			t.Errorf("Expected: %q\nGot: %q", expected, got)
@@ -2530,7 +2535,7 @@ func TestHandleGlobalJetStream(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if got, want := string(data), "{}"; got != want {
+		if got, want := string(data), "{}\n"; got != want {
 			t.Error("unexpected jetstream data")
 			t.Fatalf("got=%s; want=%s", got, want)
 		}
@@ -2573,7 +2578,8 @@ func TestHandleGlobalJetStream(t *testing.T) {
   "max_file": 10737418240,
   "max_streams": -1,
   "max_consumers": -1
-}`
+}
+`
 		if got, want := string(data), wantConf; got != want {
 			t.Error("unexpected jetstream data")
 			t.Fatalf("got=%q; want=%q", got, want)

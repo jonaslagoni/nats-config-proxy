@@ -58,6 +58,7 @@ func NewHttpServer(opts *Options) *HttpServer {
 	}
 	store := &Store{
 		opts: opts,
+		log:  Newlogger(opts),
 	}
 	return &HttpServer{
 		opts:  opts,
